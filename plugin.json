@@ -1,0 +1,31 @@
+{
+    "id": "dnsTile",
+    "name": "DNS Switcher",
+    "description": "Switch system DNS providers and monitor network status.",
+    "category": "utilities",
+    "version": "1.0.0",
+    "author": "JDKamalakar",
+    "icon": "dns",
+    "type": "widget",
+    "component": "./DnsTileWidget.qml",
+    "settings": "./DnsTileSettings.qml",
+    "capabilities": [
+        "dankbar-widget"
+    ],
+    "repo": "",
+    "screenshot": "",
+    "dependencies": [
+        "dms"
+    ],
+    "compositors": [
+        "any"
+    ],
+    "distro": [
+        "any"
+    ],
+    "permissions": [
+        "process",
+        "settings_read",
+        "settings_write"
+    ]
+}
