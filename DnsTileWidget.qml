@@ -253,58 +253,108 @@ PluginComponent {
                             Repeater {
                                 model: root.providers
                                 delegate: Item {
-                                    id: presetItem; width: presetsList.width; height: 42
-                                    property bool hovered: maPreset.containsMouse
-                                    property bool isActive: root.providerName === modelData.name
+                                     id: presetItem; width: presetsList.width; height: 44
+                                     property bool hovered: maPreset.containsMouse
+                                     property bool isActive: root.providerName === modelData.name
 
-                                    MouseArea {
-                                        id: maPreset; anchors.fill: parent; hoverEnabled: true
-                                        onClicked: root.setDns(modelData.ip)
-                                        onPressed: (m) => pRip.trigger(m.x, m.y)
-                                    }
+                                     MouseArea {
+                                         id: maPreset; anchors.fill: parent; hoverEnabled: true
+                                         onClicked: root.setDns(modelData.ip)
+                                         onPressed: (m) => pRip.trigger(m.x, m.y)
+                                     }
 
-                                    Canvas {
-                                        id: presetBg; anchors.fill: parent
-                                        property real innerRadius: 6
-                                        property real outerRadius: 12
-                                        property bool isFirst: index === 0
-                                        property bool isLast: index === root.providers.length - 1
-                                        property real tlr: isFirst ? outerRadius : innerRadius
-                                        property real trr: isFirst ? outerRadius : innerRadius
-                                        property real blr: isLast ? outerRadius : innerRadius
-                                        property real brr: isLast ? outerRadius : innerRadius
-                                        
-                                        property color paintColor: isActive 
-                                            ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
-                                            : (hovered ? Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.12) : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.05))
-                                        
-                                        onPaint: {
-                                            var ctx = getContext("2d"); ctx.reset(); ctx.beginPath();
-                                            ctx.moveTo(tlr, 0); ctx.lineTo(width - trr, 0); ctx.arcTo(width, 0, width, trr, trr);
-                                            ctx.lineTo(width, height - brr); ctx.arcTo(width, height, width - brr, height, brr);
-                                            ctx.lineTo(blr, height); ctx.arcTo(0, height, 0, height - blr, blr);
-                                            ctx.lineTo(0, tlr); ctx.arcTo(0, 0, tlr, 0, tlr);
-                                            ctx.closePath(); ctx.fillStyle = paintColor; ctx.fill();
-                                            ctx.strokeStyle = isActive ? Theme.primary : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.1);
-                                            ctx.lineWidth = isActive ? 1.5 : 1; ctx.stroke();
-                                        }
-                                        onPaintColorChanged: requestPaint()
-                                    }
-                                    
-                                    DankRipple { id: pRip; anchors.fill: parent; cornerRadius: presetBg.tlr; rippleColor: Theme.primary }
-                                    
-                                    RowLayout {
-                                        anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: Theme.spacingS
-                                        DankIcon { name: modelData.icon; size: 18; color: isActive ? Theme.primary : Theme.surfaceText; opacity: isActive ? 1 : 0.7 }
-                                        StyledText { text: modelData.name; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceText; Layout.fillWidth: true; font.bold: isActive }
-                                        DankIcon { 
-                                            name: "check_circle"; size: 16; color: Theme.primary
-                                            scale: isActive ? 1.0 : 0.0
-                                            opacity: isActive ? 1.0 : 0.0
-                                            Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
-                                            Behavior on opacity { NumberAnimation { duration: 200 } }
-                                        }
-                                    }
+                                     Canvas {
+                                         id: presetBg; anchors.fill: parent
+                                         property real innerRadius: 6
+                                         property real outerRadius: 12
+                                         property bool isFirst: index === 0
+                                         property bool isLast: index === root.providers.length - 1
+                                         
+                                         property real tlr: isActive ? 21.5 : (isFirst ? outerRadius : innerRadius)
+                                         property real trr: isActive ? 21.5 : (isFirst ? outerRadius : innerRadius)
+                                         property real blr: isActive ? 21.5 : (isLast ? outerRadius : innerRadius)
+                                         property real brr: isActive ? 21.5 : (isLast ? outerRadius : innerRadius)
+
+                                         property real tlrAnim: tlr; Behavior on tlrAnim { NumberAnimation { duration: 300; easing.type: Easing.OutExpo } }
+                                         property real trrAnim: trr; Behavior on trrAnim { NumberAnimation { duration: 300; easing.type: Easing.OutExpo } }
+                                         property real blrAnim: blr; Behavior on blrAnim { NumberAnimation { duration: 300; easing.type: Easing.OutExpo } }
+                                         property real brrAnim: brr; Behavior on brrAnim { NumberAnimation { duration: 300; easing.type: Easing.OutExpo } }
+
+                                         property color paintColor: isActive
+                                             ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.18)
+                                             : hovered
+                                                 ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
+                                                 : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.04)
+                                         
+                                         property color paintBorder: isActive
+                                             ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.6)
+                                             : hovered
+                                                 ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.4)
+                                                 : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.15)
+
+                                         onTlrAnimChanged: requestPaint()
+                                         onTrrAnimChanged: requestPaint()
+                                         onBlrAnimChanged: requestPaint()
+                                         onBrrAnimChanged: requestPaint()
+                                         onPaintColorChanged: requestPaint()
+                                         onPaintBorderChanged: requestPaint()
+
+                                         onPaint: {
+                                             var ctx = getContext("2d");
+                                             var x = 0.5, y = 0.5;
+                                             var w = width - 1, h = height - 1;
+                                             
+                                             ctx.reset();
+                                             ctx.beginPath();
+                                             ctx.moveTo(x + tlrAnim, y);
+                                             ctx.lineTo(x + w - trrAnim, y);
+                                             ctx.arcTo(x + w, y, x + w, y + trrAnim, trrAnim);
+                                             ctx.lineTo(x + w, y + h - brrAnim);
+                                             ctx.arcTo(x + w, y + h, x + w - brrAnim, y + h, brrAnim);
+                                             ctx.lineTo(x + blrAnim, y + h);
+                                             ctx.arcTo(x, y + h, x, y + h - blrAnim, blrAnim);
+                                             ctx.lineTo(x, y + tlrAnim);
+                                             ctx.arcTo(x, y, x + tlrAnim, y, tlrAnim);
+                                             ctx.closePath();
+                                             
+                                             ctx.fillStyle = paintColor;
+                                             ctx.fill();
+                                             ctx.strokeStyle = paintBorder;
+                                             ctx.lineWidth = 1;
+                                             ctx.stroke();
+                                         }
+
+                                         Rectangle { 
+                                             anchors.fill: parent; radius: parent.tlrAnim; color: "white"
+                                             anchors.margins: 0.5
+                                             opacity: hovered ? 0.05 : 0; Behavior on opacity { NumberAnimation { duration: 150 } } 
+                                         }
+                                     }
+
+                                     DankRipple { id: pRip; anchors.fill: parent; cornerRadius: presetBg.tlrAnim; rippleColor: Theme.primary }
+
+                                     RowLayout {
+                                         anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: Theme.spacingS
+                                         DankIcon { 
+                                             name: modelData.icon; size: 18
+                                             color: isActive ? Theme.primary : Theme.surfaceVariantText
+                                             Behavior on color { ColorAnimation { duration: 200 } }
+                                         }
+                                         StyledText { 
+                                             text: modelData.name; font.pixelSize: Theme.fontSizeSmall
+                                             font.weight: isActive ? Font.Bold : Font.Normal 
+                                             color: isActive ? Theme.primary : Theme.surfaceText
+                                             Layout.fillWidth: true 
+                                             Behavior on color { ColorAnimation { duration: 200 } }
+                                         }
+                                         DankIcon { 
+                                             name: "check_circle"; size: 16; color: Theme.primary
+                                             scale: isActive ? 1.0 : 0.0
+                                             opacity: isActive ? 1.0 : 0.0
+                                             Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
+                                             Behavior on opacity { NumberAnimation { duration: 200 } }
+                                         }
+                                     }
                                 }
                             }
                         }
