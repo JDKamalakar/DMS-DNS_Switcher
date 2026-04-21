@@ -28,6 +28,7 @@ PluginComponent {
 
     // --- DNS Providers ---
     readonly property var providers: [
+        { name: "System Default", ip: "", icon: "restart_alt" },
         { name: "Google", ip: "8.8.8.8, 8.8.4.4", icon: "dns" },
         { name: "Cloudflare", ip: "1.1.1.1, 1.0.0.1", icon: "security" },
         { name: "OpenDNS", ip: "208.67.222.222, 208.67.220.220", icon: "public" },
@@ -36,9 +37,10 @@ PluginComponent {
     ]
 
     function getProvider(ips) {
-        if (!ips) return "Automatic";
+        if (!ips) return "System Default";
         let clean = ips.replace(/[\s,]+/g, " ").trim();
         for (let p of providers) {
+            if (!p.ip) continue;
             let pClean = p.ip.replace(/[\s,]+/g, " ").trim();
             if (pClean === clean || clean.includes(p.ip.split(/[\s,]+/)[0].trim())) {
                 return p.name;
@@ -74,7 +76,7 @@ PluginComponent {
                 
                 root.currentDns = dnsLine;
                 root.isManualDns = manual;
-                root.providerName = root.isManualDns ? root.getProvider(root.currentDns) : "System Default (DHCP)";
+                root.providerName = root.isManualDns ? root.getProvider(root.currentDns) : "System Default";
             }
         }
     }
@@ -184,16 +186,64 @@ PluginComponent {
                                 opacity: 0.8
                             }
                         }
-                        DankIcon {
-                            name: root.loading ? "cached" : "refresh"
-                            size: 18; color: Theme.primary; opacity: 0.6
-                            rotation: 0
-                            Behavior on rotation { NumberAnimation { duration: 500; easing.type: Easing.OutBack } }
-                            
-                            RotationAnimation on rotation { 
-                                from: 0; to: 360; duration: 1000; loops: Animation.Infinite; running: root.loading 
+                        Item {
+                            width: 38
+                            height: 38
+                            Layout.alignment: Qt.AlignVCenter
+                            scale: refreshArea.pressed ? 0.9 : (refreshArea.containsMouse ? 1.1 : 1.0)
+                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+
+                            MouseArea {
+                                id: refreshArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onPressed: mouse => refreshRipple.trigger(mouse.x, mouse.y)
+                                onClicked: {
+                                    root.refresh()
+                                }
                             }
-                            MouseArea { anchors.fill: parent; onClicked: { parent.rotation += 360; root.refresh() } }
+
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: Theme.cornerRadius
+                                color: refreshArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15) : Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.4)
+                                border.width: 1
+                                border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, refreshArea.containsMouse ? 0.3 : 0.15)
+                                Behavior on color { ColorAnimation { duration: 150 } }
+                                Behavior on border.color { ColorAnimation { duration: 150 } }
+                            }
+
+                            DankIcon {
+                                id: refreshIcon
+                                name: root.loading ? "cached" : "refresh"
+                                size: 20
+                                color: Theme.primary
+                                anchors.centerIn: parent
+
+                                SequentialAnimation {
+                                    id: hoverSpinAnim
+                                    running: refreshArea.containsMouse && !root.loading
+                                    onStopped: refreshIcon.rotation = 0
+                                    NumberAnimation { target: refreshIcon; property: "rotation"; from: 0; to: 45; duration: 200; easing.type: Easing.OutQuad }
+                                    NumberAnimation { target: refreshIcon; property: "rotation"; from: 45; to: -45; duration: 400; easing.type: Easing.InOutQuad }
+                                    NumberAnimation { target: refreshIcon; property: "rotation"; from: -45; to: 0; duration: 200; easing.type: Easing.InQuad }
+                                }
+
+                                RotationAnimation on rotation {
+                                    from: 0
+                                    to: 360
+                                    duration: 1000
+                                    loops: Animation.Infinite; running: root.loading
+                                }
+                            }
+
+                            DankRipple {
+                                id: refreshRipple
+                                rippleColor: Theme.surfaceText
+                                cornerRadius: Theme.cornerRadius
+                                anchors.fill: parent
+                            }
                         }
                     }
                 }
@@ -389,35 +439,67 @@ PluginComponent {
                             DankTextField {
                                 id: customDnsInput; Layout.fillWidth: true; placeholderText: "8.8.8.8, 1.1.1.1"; font.pixelSize: Theme.fontSizeSmall
                                 text: (root.providerName === "Custom") ? root.currentDns : ""
+                                onAccepted: if (saveBtnContainer.canSave) root.setDns(text.trim())
                             }
-                            Rectangle {
-                                width: 36; height: 36; radius: 18; color: Theme.primary
-                                DankIcon { name: "done"; size: 18; color: "white"; anchors.centerIn: parent }
-                                MouseArea { 
-                                    anchors.fill: parent; onClicked: if (customDnsInput.text) root.setDns(customDnsInput.text.trim())
-                                    onPressed: (m) => doneRip.trigger(m.x, m.y)
+                            Item {
+                                id: saveBtnContainer
+                                width: 38
+                                height: 38
+                                property bool hasText: customDnsInput.text.trim().length > 0
+                                property bool isDifferent: customDnsInput.text.trim() !== root.currentDns
+                                property bool canSave: hasText && isDifferent
+
+                                scale: canSave ? (saveArea.pressed ? 0.9 : (saveArea.containsMouse ? 1.1 : 1.0)) : 1.0
+                                opacity: canSave ? 1.0 : 0.3
+                                Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+                                Behavior on opacity { NumberAnimation { duration: 200 } }
+
+                                MouseArea {
+                                    id: saveArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    enabled: parent.canSave
+                                    cursorShape: parent.canSave ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                    onEntered: if (parent.canSave) saveHoverAnim.restart()
+                                    onPressed: mouse => saveRipple.trigger(mouse.x, mouse.y)
+                                    onClicked: root.setDns(customDnsInput.text.trim())
                                 }
-                                DankRipple { id: doneRip; anchors.fill: parent; cornerRadius: 18; rippleColor: "white" }
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: Theme.cornerRadius
+                                    color: saveArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15) : Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.4)
+                                    border.width: 1
+                                    border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, saveArea.containsMouse ? 0.3 : 0.15)
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                                }
+
+                                DankIcon {
+                                    id: saveIcon
+                                    name: "done"
+                                    size: 20
+                                    color: Theme.primary
+                                    anchors.centerIn: parent
+                                    
+                                    SequentialAnimation {
+                                        id: saveHoverAnim
+                                        onStopped: saveIcon.rotation = 0
+                                        NumberAnimation { target: saveIcon; property: "rotation"; from: 0; to: 15; duration: 200; easing.type: Easing.OutQuad }
+                                        NumberAnimation { target: saveIcon; property: "rotation"; from: 15; to: -15; duration: 400; easing.type: Easing.InOutQuad }
+                                        NumberAnimation { target: saveIcon; property: "rotation"; from: -15; to: 0; duration: 200; easing.type: Easing.InQuad }
+                                    }
+                                }
+
+                                DankRipple {
+                                    id: saveRipple
+                                    rippleColor: Theme.surfaceText
+                                    cornerRadius: Theme.cornerRadius
+                                    anchors.fill: parent
+                                }
                             }
                         }
 
-                        StyledRect {
-                            width: parent.width; height: 40; radius: 8
-                            color: Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.1)
-                            border.color: Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.2); border.width: 1
-                            opacity: root.isManualDns ? 1 : 0.5
-                            
-                            RowLayout {
-                                anchors.centerIn: parent; spacing: 8
-                                DankIcon { name: "restart_alt"; size: 16; color: Theme.error }
-                                StyledText { text: "Reset to System Default (DHCP)"; color: Theme.error; font.pixelSize: Theme.fontSizeSmall - 1; font.bold: true }
-                            }
-                            MouseArea { 
-                                anchors.fill: parent; enabled: root.isManualDns; onClicked: root.setDns("")
-                                onPressed: (m) => resetRip.trigger(m.x, m.y)
-                            }
-                            DankRipple { id: resetRip; anchors.fill: parent; cornerRadius: 8; rippleColor: Theme.error }
-                        }
                     }
                 }
             }
