@@ -29,12 +29,19 @@ PluginComponent {
     // --- DNS Providers ---
     readonly property var providers: [
         { name: "System Default", ip: "", icon: "restart_alt" },
-        { name: "Google", ip: "8.8.8.8, 8.8.4.4", icon: "dns" },
-        { name: "Cloudflare", ip: "1.1.1.1, 1.0.0.1", icon: "security" },
+        { name: "Google", ip: "8.8.8.8, 8.8.4.4", icon: "assets/google.svg" },
+        { name: "Cloudflare", ip: "1.1.1.1, 1.0.0.1", icon: "assets/cloudflare.svg" },
         { name: "OpenDNS", ip: "208.67.222.222, 208.67.220.220", icon: "public" },
         { name: "AdGuard", ip: "94.140.14.14, 94.140.15.15", icon: "verified_user" },
-        { name: "Quad9", ip: "9.9.9.9, 149.112.112.112", icon: "lock" }
+        { name: "Quad9", ip: "9.9.9.9, 149.112.112.112", icon: "assets/quad9.svg" }
     ]
+
+    readonly property string currentIcon: {
+        for (let p of providers) {
+            if (p.name === providerName) return p.icon;
+        }
+        return "dns";
+    }
 
     function getProvider(ips) {
         if (!ips) return "System Default";
@@ -168,7 +175,29 @@ PluginComponent {
                         anchors.fill: parent; anchors.margins: Theme.spacingM; spacing: Theme.spacingM
                         Rectangle {
                             width: 42; height: 42; radius: 21; color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.2)
-                            DankIcon { name: "settings_ethernet"; size: 24; color: Theme.primary; anchors.centerIn: parent }
+                            Loader {
+                                anchors.centerIn: parent
+                                width: 24; height: 24
+                                sourceComponent: root.currentIcon.includes("/") ? customHeaderIcon : standardHeaderIcon
+                                
+                                Component {
+                                    id: standardHeaderIcon
+                                    DankIcon { name: root.currentIcon; size: 24; color: Theme.primary; anchors.centerIn: parent }
+                                }
+                                Component {
+                                    id: customHeaderIcon
+                                    Item {
+                                        width: 24; height: 24
+                                        Image {
+                                            id: headerImg; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent
+                                            sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true
+                                        }
+                                        ColorOverlay {
+                                            anchors.fill: headerImg; source: headerImg; color: Theme.primary
+                                        }
+                                    }
+                                }
+                            }
                         }
                         Column {
                             Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 1
@@ -256,7 +285,7 @@ PluginComponent {
                     
                     RowLayout {
                         anchors.fill: parent; anchors.margins: Theme.spacingM
-                        DankIcon { name: "public"; size: 16; color: Theme.surfaceText; opacity: 0.7 }
+                        DankIcon { name: "settings_ethernet"; size: 16; color: Theme.surfaceText; opacity: 0.7 }
                         StyledText { 
                             text: "Current DNS: " + root.providerName
                             font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceText
@@ -385,10 +414,42 @@ PluginComponent {
 
                                      RowLayout {
                                          anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: Theme.spacingS
-                                         DankIcon { 
-                                             name: modelData.icon; size: 18
-                                             color: isActive ? Theme.primary : Theme.surfaceVariantText
-                                             Behavior on color { ColorAnimation { duration: 200 } }
+                                         Loader {
+                                             Layout.preferredWidth: 18
+                                             Layout.preferredHeight: 18
+                                             sourceComponent: modelData.icon.includes("/") ? customIconComp : standardIconComp
+                                             
+                                             Component {
+                                                 id: standardIconComp
+                                                 DankIcon { 
+                                                     name: modelData.icon; size: 18
+                                                     color: isActive ? Theme.primary : Theme.surfaceVariantText
+                                                     anchors.centerIn: parent
+                                                     Behavior on color { ColorAnimation { duration: 200 } }
+                                                 }
+                                             }
+
+                                             Component {
+                                                 id: customIconComp
+                                                 Item {
+                                                     width: 18; height: 18
+                                                     Image {
+                                                         id: imgIcon
+                                                         source: Qt.resolvedUrl(modelData.icon)
+                                                         anchors.fill: parent
+                                                         sourceSize.width: 18
+                                                         sourceSize.height: 18
+                                                         visible: false
+                                                         smooth: true
+                                                     }
+                                                     ColorOverlay {
+                                                         anchors.fill: imgIcon
+                                                         source: imgIcon
+                                                         color: isActive ? Theme.primary : Theme.surfaceVariantText
+                                                         Behavior on color { ColorAnimation { duration: 200 } }
+                                                     }
+                                                 }
+                                             }
                                          }
                                          StyledText { 
                                              text: modelData.name; font.pixelSize: Theme.fontSizeSmall
