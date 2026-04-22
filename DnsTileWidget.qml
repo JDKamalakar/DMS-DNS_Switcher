@@ -14,6 +14,16 @@ PluginComponent {
     popoutWidth: 320
     popoutHeight: 0
 
+    // --- CC Support ---
+    ccWidgetIcon: "dns"
+    ccWidgetPrimaryText: "DNS Settings"
+    ccWidgetSecondaryText: root.providerName === "System Default" ? "Automatic" : root.providerName
+    ccWidgetIsActive: root.isManualDns
+    ccDetailHeight: 480
+    onCcWidgetExpanded: root.refresh()
+    
+    ccDetailContent: popoutContent
+
     Component.onCompleted: {
         console.log("DNS Tile Plugin Loaded: " + root.providerName);
     }
@@ -28,10 +38,10 @@ PluginComponent {
 
     // --- DNS Providers ---
     readonly property var providers: [
-        { name: "System Default", ip: "", icon: "restart_alt" },
+        { name: "System Default", ip: "", icon: "assets/system_default.svg" },
         { name: "Google", ip: "8.8.8.8, 8.8.4.4", icon: "assets/google.svg" },
         { name: "Cloudflare", ip: "1.1.1.1, 1.0.0.1", icon: "assets/cloudflare.svg" },
-        { name: "OpenDNS", ip: "208.67.222.222, 208.67.220.220", icon: "public" },
+        { name: "OpenDNS", ip: "208.67.222.222, 208.67.220.220", icon: "assets/opendns.svg" },
         { name: "AdGuard", ip: "94.140.14.14, 94.140.15.15", icon: "verified_user" },
         { name: "Quad9", ip: "9.9.9.9, 149.112.112.112", icon: "assets/quad9.svg" }
     ]
