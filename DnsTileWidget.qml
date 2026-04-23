@@ -6,6 +6,7 @@ import qs.Common
 import qs.Widgets
 import qs.Modules.Plugins
 import qs.Services
+import QtQuick.Controls
 import Qt5Compat.GraphicalEffects
 
 PluginComponent {
@@ -22,9 +23,23 @@ PluginComponent {
     ccDetailHeight: 480
     onCcWidgetExpanded: root.refresh()
     
-    ccDetailContent: popoutContent
+    ccDetailContent: Component {
+        ScrollView {
+            anchors.fill: parent
+            clip: false
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ScrollBar.vertical.policy: ScrollBar.AlwaysOff
+            
+            Loader {
+                width: parent.width
+                sourceComponent: dnsWidgetContent
+                readonly property bool inCC: true
+            }
+        }
+    }
 
     Component.onCompleted: {
+        root.updateProviders();
         console.log("DNS Tile Plugin Loaded: " + root.providerName);
     }
 
@@ -36,15 +51,34 @@ PluginComponent {
     property string providerName: "Unknown"
     property bool loading: connScanner.running || dnsScanner.running || setter.running
 
-    // --- DNS Providers ---
-    readonly property var providers: [
-        { name: "System Default", ip: "", icon: "assets/system_default.svg" },
-        { name: "Google", ip: "8.8.8.8, 8.8.4.4", icon: "assets/google.svg" },
-        { name: "Cloudflare", ip: "1.1.1.1, 1.0.0.1", icon: "assets/cloudflare.svg" },
-        { name: "OpenDNS", ip: "208.67.222.222, 208.67.220.220", icon: "assets/opendns.svg" },
-        { name: "AdGuard", ip: "94.140.14.14, 94.140.15.15", icon: "verified_user" },
-        { name: "Quad9", ip: "9.9.9.9, 149.112.112.112", icon: "assets/quad9.svg" }
-    ]
+    // --- Settings & Reactivity ---
+    property string _hiddenProviders: PluginService.loadPluginData("dnsTile", "hiddenProviders", "[]")
+    property string _customProviders: PluginService.loadPluginData("dnsTile", "customProviders", "[]")
+
+    PluginGlobalVar { varName: "hiddenProviders"; onValueChanged: { root._hiddenProviders = value; root.updateProviders() } }
+    PluginGlobalVar { varName: "customProviders"; onValueChanged: { root._customProviders = value; root.updateProviders() } }
+
+    property var providers: []
+
+    function updateProviders() {
+        let hidden = [];
+        try { hidden = JSON.parse(root._hiddenProviders); } catch(e) { hidden = []; }
+        
+        let custom = [];
+        try { custom = JSON.parse(root._customProviders); } catch(e) { custom = []; }
+
+        let defaults = [
+            { name: "System Default", ip: "", icon: "assets/system_default.svg" },
+            { name: "Google", ip: "8.8.8.8, 8.8.4.4", icon: "assets/google.svg" },
+            { name: "Cloudflare", ip: "1.1.1.1, 1.0.0.1", icon: "assets/cloudflare.svg" },
+            { name: "OpenDNS", ip: "208.67.222.222, 208.67.220.220", icon: "assets/opendns.svg" },
+            { name: "AdGuard", ip: "94.140.14.14, 94.140.15.15", icon: "verified_user" },
+            { name: "Quad9", ip: "9.9.9.9, 149.112.112.112", icon: "assets/quad9.svg" }
+        ];
+
+        let filtered = defaults.filter(p => hidden.indexOf(p.name) === -1);
+        root.providers = filtered.concat(custom);
+    }
 
     readonly property string currentIcon: {
         for (let p of providers) {
@@ -162,13 +196,24 @@ PluginComponent {
             detailsText: ""
             showCloseButton: false
             
-            Column {
-                id: mainCol; width: parent.width; spacing: Theme.spacingM
-                topPadding: 0; bottomPadding: 2
+            Loader {
+                width: parent.width
+                sourceComponent: dnsWidgetContent
+                readonly property bool inCC: false
+            }
+        }
+    }
+
+    Component {
+        id: dnsWidgetContent
+        Column {
+            id: mainCol; width: parent.width; spacing: Theme.spacingM
+            readonly property bool inCC: (parent && parent.inCC) || false
+            padding: inCC ? 12 : 6
 
                 // --- Header Card ---
                 StyledRect {
-                    width: parent.width; height: 72
+                    width: parent.width - (mainCol.inCC ? 24 : 12); anchors.horizontalCenter: parent.horizontalCenter; height: 72
                     radius: Theme.cornerRadius
                     color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
                     border.width: 1
@@ -289,7 +334,8 @@ PluginComponent {
 
                 // --- Current Provider Section ---
                 StyledRect {
-                    width: parent.width; height: 50
+                    width: parent.width - (mainCol.inCC ? 24 : 12); height: 50
+                    anchors.horizontalCenter: parent.horizontalCenter
                     radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
                     border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
                     
@@ -311,7 +357,8 @@ PluginComponent {
 
                 StyledRect {
                     id: presetsCont
-                    width: parent.width
+                    width: parent.width - (mainCol.inCC ? 24 : 12)
+                    anchors.horizontalCenter: parent.horizontalCenter
                     height: presetsContentCol.implicitHeight + Theme.spacingM * 2
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                     radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
@@ -484,7 +531,8 @@ PluginComponent {
 
                 StyledRect {
                     id: customCont
-                    width: parent.width; height: customCol.implicitHeight + Theme.spacingM * 2
+                    width: parent.width - (mainCol.inCC ? 24 : 12); height: customCol.implicitHeight + Theme.spacingM * 2
+                    anchors.horizontalCenter: parent.horizontalCenter
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                     radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
                     border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
@@ -573,7 +621,6 @@ PluginComponent {
 
                     }
                 }
-            }
         }
     }
 }
