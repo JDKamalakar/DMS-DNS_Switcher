@@ -10,48 +10,41 @@ PluginSettings {
     id: root
     pluginId: "dnsTile"
 
-    // --- State ---
-    property var hiddenProviders: []
-    property var customProviders: []
-
-    function loadValue(key, def) {
-        return PluginService.loadPluginData(root.pluginId, key, def);
-    }
-
-    function saveValue(key, val) {
-        PluginService.savePluginData(root.pluginId, key, val);
-        PluginService.setGlobalVar(root.pluginId, key, val);
-    }
-
-    function loadAll() {
-        let hidden = loadValue("hiddenProviders", "[]");
-        try { hiddenProviders = JSON.parse(hidden); } catch(e) { hiddenProviders = []; }
-        
-        let custom = loadValue("customProviders", "[]");
-        try { customProviders = JSON.parse(custom); } catch(e) { customProviders = []; }
-    }
-
-    function saveHidden() {
-        saveValue("hiddenProviders", JSON.stringify(hiddenProviders));
-    }
-
-    function saveCustom() {
-        saveValue("customProviders", JSON.stringify(customProviders));
-    }
-
-    function removeCustom(idx) {
-        let list = Array.from(customProviders);
-        list.splice(idx, 1);
-        customProviders = list;
-        saveCustom();
-    }
-
-    Component.onCompleted: loadAll()
-
     Column {
         id: mainSettingsCol
         width: parent.width
         spacing: Theme.spacingL
+
+        function loadValue(key, def) {
+            return PluginService.loadPluginData(root.pluginId, key, def);
+        }
+
+        function saveValue(key, val) {
+            PluginService.savePluginData(root.pluginId, key, val);
+            PluginService.setGlobalVar(root.pluginId, key, val);
+        }
+
+        // --- State ---
+        property var hiddenProviders: []
+        property var customProviders: []
+
+        function loadAll() {
+            let hidden = loadValue("hiddenProviders", "[]");
+            try { hiddenProviders = JSON.parse(hidden); } catch(e) { hiddenProviders = []; }
+            
+            let custom = loadValue("customProviders", "[]");
+            try { customProviders = JSON.parse(custom); } catch(e) { customProviders = []; }
+        }
+
+        function saveHidden() {
+            saveValue("hiddenProviders", JSON.stringify(hiddenProviders));
+        }
+
+        function saveCustom() {
+            saveValue("customProviders", JSON.stringify(customProviders));
+        }
+
+        Component.onCompleted: loadAll()
 
         // --- Provider Visibility Section ---
         Rectangle {
@@ -88,14 +81,14 @@ PluginSettings {
                     Repeater {
                         model: ["System Default", "Google", "Cloudflare", "OpenDNS", "AdGuard", "Quad9"]
                         delegate: Rectangle {
-                            width: Math.max(0, (visibilityCol.width - Theme.spacingM * 2 - Theme.spacingS) / 2 - 1)
+                            width: (visibilityCol.width - Theme.spacingS) / 2 - 1
                             height: 40
                             radius: 8
                             color: isHidden ? Theme.surfaceContainerHighest : Theme.primaryContainer
                             border.color: isHidden ? Theme.outline : Theme.primary
                             border.width: 1
                             
-                            property bool isHidden: root.hiddenProviders.indexOf(modelData) !== -1
+                            property bool isHidden: mainSettingsCol.hiddenProviders.indexOf(modelData) !== -1
 
                             RowLayout {
                                 anchors.fill: parent; anchors.margins: Theme.spacingS
@@ -109,12 +102,12 @@ PluginSettings {
                             MouseArea {
                                 anchors.fill: parent; hoverEnabled: true
                                 onClicked: {
-                                    let list = Array.from(root.hiddenProviders);
+                                    let list = Array.from(mainSettingsCol.hiddenProviders);
                                     let idx = list.indexOf(modelData);
                                     if (idx === -1) list.push(modelData);
                                     else list.splice(idx, 1);
-                                    root.hiddenProviders = list;
-                                    root.saveHidden();
+                                    mainSettingsCol.hiddenProviders = list;
+                                    mainSettingsCol.saveHidden();
                                 }
                             }
                         }
@@ -175,14 +168,14 @@ PluginSettings {
                                 anchors.fill: parent
                                 enabled: newName.text && newIp.text
                                 onClicked: {
-                                    let list = Array.from(root.customProviders);
+                                    let list = Array.from(mainSettingsCol.customProviders);
                                     list.push({
                                         name: newName.text,
                                         ip: newIp.text,
                                         icon: newIcon.text || "dns"
                                     });
-                                    root.customProviders = list;
-                                    root.saveCustom();
+                                    mainSettingsCol.customProviders = list;
+                                    mainSettingsCol.saveCustom();
                                     newName.text = ""; newIp.text = ""; newIcon.text = "";
                                 }
                             }
@@ -195,7 +188,7 @@ PluginSettings {
                     width: parent.width
                     spacing: Theme.spacingXS
                     Repeater {
-                        model: root.customProviders
+                        model: mainSettingsCol.customProviders
                         delegate: Rectangle {
                             width: parent.width; height: 44; radius: 8
                             color: Theme.surfaceContainerHigh
@@ -210,17 +203,16 @@ PluginSettings {
                                     StyledText { text: modelData.name; font.weight: Font.Bold; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceText }
                                     StyledText { text: modelData.ip; font.pixelSize: Theme.fontSizeSmall - 2; color: Theme.surfaceVariantText; elide: Text.ElideRight }
                                 }
-                                Item {
-                                    Layout.preferredWidth: 28; Layout.preferredHeight: 28
-                                    Layout.alignment: Qt.AlignVCenter
                                     DankIcon { 
                                         name: "delete"; size: 18; color: Theme.error
-                                        anchors.centerIn: parent
-                                    }
                                     MouseArea {
                                         anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.removeCustom(index)
+                                        onClicked: {
+                                            let list = Array.from(mainSettingsCol.customProviders);
+                                            list.splice(index, 1);
+                                            mainSettingsCol.customProviders = list;
+                                            mainSettingsCol.saveCustom();
+                                        }
                                     }
                                 }
                             }

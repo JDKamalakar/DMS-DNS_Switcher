@@ -68,11 +68,11 @@ PluginComponent {
         try { custom = JSON.parse(root._customProviders); } catch(e) { custom = []; }
 
         let defaults = [
-            { name: "System Default", ip: "", icon: "assets/system_default.svg" },
+            { name: "System Default", ip: "", icon: "cloud_off" },
             { name: "Google", ip: "8.8.8.8, 8.8.4.4", icon: "assets/google.svg" },
             { name: "Cloudflare", ip: "1.1.1.1, 1.0.0.1", icon: "assets/cloudflare.svg" },
             { name: "OpenDNS", ip: "208.67.222.222, 208.67.220.220", icon: "assets/opendns.svg" },
-            { name: "AdGuard", ip: "94.140.14.14, 94.140.15.15", icon: "verified_user" },
+            { name: "AdGuard", ip: "94.140.14.14, 94.140.15.15", icon: "assets/adguard.svg" },
             { name: "Quad9", ip: "9.9.9.9, 149.112.112.112", icon: "assets/quad9.svg" }
         ];
 
@@ -177,14 +177,55 @@ PluginComponent {
 
     // --- Bar Pill ---
     horizontalBarPill: Component {
-        DankIcon {
-            name: "dns"; size: Theme.iconSize - 4; color: Theme.widgetIconColor || Theme.primary; anchors.verticalCenter: parent.verticalCenter
+        RowLayout {
+            spacing: 6; anchors.verticalCenter: parent.verticalCenter
+            Loader {
+                Layout.preferredWidth: Theme.iconSize - 4; Layout.preferredHeight: Theme.iconSize - 4
+                sourceComponent: root.currentIcon.includes("/") ? customPillIconH : standardPillIconH
+                Component { id: standardPillIconH; DankIcon { name: root.currentIcon; size: Theme.iconSize - 4; color: Theme.widgetIconColor || Theme.primary } }
+                Component { 
+                    id: customPillIconH
+                    Item {
+                        width: Theme.iconSize - 4; height: Theme.iconSize - 4
+                        Image { id: pillImgH; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent; sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true }
+                        ColorOverlay { anchors.fill: pillImgH; source: pillImgH; color: Theme.widgetIconColor || Theme.primary }
+                    }
+                }
+            }
+            StyledText { 
+                text: root.providerName === "System Default" ? "Auto" : root.providerName
+                font.pixelSize: Theme.fontSizeSmall - 2; font.weight: Font.Medium
+                color: Theme.widgetTextColor || Theme.surfaceText
+            }
         }
     }
 
     verticalBarPill: Component {
-        DankIcon {
-            name: "dns"; size: 20; color: Theme.widgetIconColor || Theme.primary; anchors.horizontalCenter: parent.horizontalCenter
+        ColumnLayout {
+            spacing: 2; anchors.horizontalCenter: parent.horizontalCenter
+            Loader {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: 18; Layout.preferredHeight: 18
+                sourceComponent: root.currentIcon.includes("/") ? customPillIconV : standardPillIconV
+                Component { id: standardPillIconV; DankIcon { name: root.currentIcon; size: 18; color: Theme.widgetIconColor || Theme.primary } }
+                Component { 
+                    id: customPillIconV
+                    Item {
+                        width: 18; height: 18
+                        Image { id: pillImgV; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent; sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true }
+                        ColorOverlay { anchors.fill: pillImgV; source: pillImgV; color: Theme.widgetIconColor || Theme.primary }
+                    }
+                }
+            }
+            StyledText { 
+                text: root.providerName === "System Default" ? "Auto" : root.providerName
+                font.pixelSize: 8; font.weight: Font.Bold
+                color: Theme.widgetTextColor || Theme.surfaceText
+                Layout.alignment: Qt.AlignHCenter
+                elide: Text.ElideRight
+                width: 32
+                horizontalAlignment: Text.AlignHCenter
+            }
         }
     }
 
