@@ -69,11 +69,11 @@ PluginComponent {
 
         let defaults = [
             { name: "System Default", ip: "", icon: "cloud_off" },
-            { name: "Google", ip: "8.8.8.8, 8.8.4.4", icon: "assets/google.svg" },
-            { name: "Cloudflare", ip: "1.1.1.1, 1.0.0.1", icon: "assets/cloudflare.svg" },
-            { name: "OpenDNS", ip: "208.67.222.222, 208.67.220.220", icon: "assets/opendns.svg" },
-            { name: "AdGuard", ip: "94.140.14.14, 94.140.15.15", icon: "assets/adguard.svg" },
-            { name: "Quad9", ip: "9.9.9.9, 149.112.112.112", icon: "assets/quad9.svg" }
+            { name: "Google", ip: "8.8.8.8, 8.8.4.4", icon: "assets/icons/google.svg" },
+            { name: "Cloudflare", ip: "1.1.1.1, 1.0.0.1", icon: "assets/icons/cloudflare.svg" },
+            { name: "OpenDNS", ip: "208.67.222.222, 208.67.220.220", icon: "assets/icons/opendns.svg" },
+            { name: "AdGuard", ip: "94.140.14.14, 94.140.15.15", icon: "assets/icons/adguard.svg" },
+            { name: "Quad9", ip: "9.9.9.9, 149.112.112.112", icon: "assets/icons/quad9.svg" }
         ];
 
         let filtered = defaults.filter(p => hidden.indexOf(p.name) === -1);

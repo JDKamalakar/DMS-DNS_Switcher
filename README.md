@@ -28,13 +28,10 @@ Quickly toggle between popular DNS providers like Google, Cloudflare, and AdGuar
 | <img width="2445" height="766" alt="Pop-UI" src="assets/POP-Up_UI.png" /> |
 
 
-| Dankbar UI (Horizontal) |
+| QS (Control Center) UI |
 | :--- |
-| <img width="272" height="57" alt="Dankbar UI" src="assets/Dank-Bar_Widget.png" /> |
+| <img width="623" height="636" alt="QS Center UI" src="assets/QS_UI.png" /> |
 
-| Dankbar UI (Vertical) |
-| :--- |
-| <img width="60" height="60" alt="Vertical Pill" src="assets/Vertical_Pill.png" /> |
 
 ### ⚙️ Configuration
 | Settings UI |
