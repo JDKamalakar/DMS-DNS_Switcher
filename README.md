@@ -25,7 +25,7 @@ Quickly toggle between popular DNS providers like Google, Cloudflare, and AdGuar
 ### 🖥️ Main Display
 | Pop-Up UI |
 | :--- |
-| <img width="2445" height="766" alt="Pop-UI" src="assets/POP-Up_UI.png" /> |
+| <img width="383" height="1224" alt="Pop-UI" src="assets/POP-Up_UI.png" /> |
 
 
 | QS (Control Center) UI |
