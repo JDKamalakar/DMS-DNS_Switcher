@@ -21,7 +21,16 @@ PluginComponent {
     ccWidgetSecondaryText: root.providerName === "System Default" ? "Automatic" : root.providerName
     ccWidgetIsActive: root.isManualDns
     ccDetailHeight: 480
-    onCcWidgetExpanded: root.refresh()
+    onCcWidgetExpanded: {
+        // Defer refresh to avoid stutter during expansion animation
+        refreshTimer.restart();
+    }
+
+    Timer {
+        id: refreshTimer
+        interval: 150
+        onTriggered: root.refresh()
+    }
     
     ccDetailContent: Component {
         ScrollView {
@@ -32,8 +41,13 @@ PluginComponent {
             
             Loader {
                 width: parent.width
+                asynchronous: true
                 sourceComponent: dnsWidgetContent
                 readonly property bool inCC: true
+                
+                // Fade in content once loaded for better UX
+                opacity: status === Loader.Ready ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 200 } }
             }
         }
     }
@@ -239,8 +253,12 @@ PluginComponent {
             
             Loader {
                 width: parent.width
+                asynchronous: true
                 sourceComponent: dnsWidgetContent
                 readonly property bool inCC: false
+                
+                opacity: status === Loader.Ready ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 200 } }
             }
         }
     }
@@ -250,11 +268,12 @@ PluginComponent {
         Column {
             id: mainCol; width: parent.width; spacing: Theme.spacingM
             readonly property bool inCC: (parent && parent.inCC) || false
-            padding: inCC ? 12 : 6
+            padding: inCC ? 16 : 0
+            topPadding: 0
+            bottomPadding: inCC ? 16 : 2
 
-                // --- Header Card ---
                 StyledRect {
-                    width: parent.width - (mainCol.inCC ? 24 : 12); anchors.horizontalCenter: parent.horizontalCenter; height: 72
+                    width: parent.width - (mainCol.inCC ? 32 : 0); anchors.horizontalCenter: parent.horizontalCenter; height: 72
                     radius: Theme.cornerRadius
                     color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
                     border.width: 1
@@ -373,9 +392,8 @@ PluginComponent {
                     }
                 }
 
-                // --- Current Provider Section ---
                 StyledRect {
-                    width: parent.width - (mainCol.inCC ? 24 : 12); height: 50
+                    width: parent.width - (mainCol.inCC ? 32 : 0); height: 50
                     anchors.horizontalCenter: parent.horizontalCenter
                     radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
                     border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
@@ -398,7 +416,7 @@ PluginComponent {
 
                 StyledRect {
                     id: presetsCont
-                    width: parent.width - (mainCol.inCC ? 24 : 12)
+                    width: parent.width - (mainCol.inCC ? 32 : 0)
                     anchors.horizontalCenter: parent.horizontalCenter
                     height: presetsContentCol.implicitHeight + Theme.spacingM * 2
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
@@ -572,7 +590,7 @@ PluginComponent {
 
                 StyledRect {
                     id: customCont
-                    width: parent.width - (mainCol.inCC ? 24 : 12); height: customCol.implicitHeight + Theme.spacingM * 2
+                    width: parent.width - (mainCol.inCC ? 32 : 0); height: customCol.implicitHeight + Theme.spacingM * 2
                     anchors.horizontalCenter: parent.horizontalCenter
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                     radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
