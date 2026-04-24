@@ -9,9 +9,6 @@
 ### Premium DNS Management
 Monitor and switch your system DNS providers – easier than ever on the Dank Material Shell.
 
-[![Discord server](https://img.shields.io/discord/1195734228319617024.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/dms)
-[![GitHub downloads](https://img.shields.io/github/downloads/JDKamalakar/DMS-DNS_Switcher/total?label=downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/JDKamalakar/DMS-DNS_Switcher/releases)
-
 [![DMS Compatible](https://img.shields.io/badge/DMS-Compatible-purple.svg?labelColor=27303D)](https://github.com/Dank-Material-Shell)
 [![License](https://img.shields.io/badge/License-DMS-blue.svg?labelColor=27303D&color=0877d2)](https://github.com/DankMaterialShell)
 [![Maintenance Status](https://img.shields.io/badge/Status-Maintained-green.svg?labelColor=27303D&color=946300)](https://github.com/JDKamalakar/DMS-DNS_Switcher/graphs/commit-activity)
@@ -19,7 +16,6 @@ Monitor and switch your system DNS providers – easier than ever on the Dank Ma
 ## Download
 
 [![DMS Plugin Gallery](https://img.shields.io/badge/DMS-Plugin%20Gallery-06599d?style=flat-square&logo=linux&logoColor=white)](https://danklinux.com/plugins)
-[![GitHub Releases](https://img.shields.io/github/v/release/JDKamalakar/DMS-DNS_Switcher.svg?maxAge=3600&label=Releases&labelColor=2c2c47&color=1c1c39)](https://github.com/JDKamalakar/DMS-DNS_Switcher/releases)
 
 *Requires Dank Material Shell (DMS) 1.0 or higher.*
 
