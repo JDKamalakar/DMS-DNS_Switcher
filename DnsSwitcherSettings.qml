@@ -8,7 +8,7 @@ import qs.Services
 
 PluginSettings {
     id: root
-    pluginId: "dnsTile"
+    pluginId: "dnsSwitcher"
 
     Column {
         id: mainSettingsCol

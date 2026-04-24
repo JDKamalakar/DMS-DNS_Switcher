@@ -40,7 +40,7 @@ PluginComponent {
 
     Component.onCompleted: {
         root.updateProviders();
-        console.log("DNS Tile Plugin Loaded: " + root.providerName);
+        console.log("DNS Switcher Plugin Loaded: " + root.providerName);
     }
 
     // --- State Management ---
@@ -52,8 +52,8 @@ PluginComponent {
     property bool loading: connScanner.running || dnsScanner.running || setter.running
 
     // --- Settings & Reactivity ---
-    property string _hiddenProviders: PluginService.loadPluginData("dnsTile", "hiddenProviders", "[]")
-    property string _customProviders: PluginService.loadPluginData("dnsTile", "customProviders", "[]")
+    property string _hiddenProviders: PluginService.loadPluginData("dnsSwitcher", "hiddenProviders", "[]")
+    property string _customProviders: PluginService.loadPluginData("dnsSwitcher", "customProviders", "[]")
 
     PluginGlobalVar { varName: "hiddenProviders"; onValueChanged: { root._hiddenProviders = value; root.updateProviders() } }
     PluginGlobalVar { varName: "customProviders"; onValueChanged: { root._customProviders = value; root.updateProviders() } }

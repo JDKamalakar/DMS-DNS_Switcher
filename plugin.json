@@ -1,5 +1,5 @@
 {
-    "id": "dnsTile",
+    "id": "dnsSwitcher",
     "name": "DNS Switcher",
     "description": "Switch system DNS providers and monitor network status.",
     "category": "utilities",
@@ -7,8 +7,8 @@
     "author": "JDKamalakar",
     "icon": "dns",
     "type": "widget",
-    "component": "./DnsTileWidget.qml",
-    "settings": "./DnsTileSettings.qml",
+    "component": "./DnsSwitcherWidget.qml",
+    "settings": "./DnsSwitcherSettings.qml",
     "capabilities": [
         "dankbar-widget"
     ],
