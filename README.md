@@ -1,78 +1,75 @@
-# <img width="24" height="24" alt="image" src="https://github.com/user-attachments/assets/dns-icon-placeholder" /> DMS-DNS_Switcher
+<div align="center">
 
-[![DMS Version](https://img.shields.io/badge/DMS-Compatible-purple.svg)](https://github.com/Dank-Material-Shell)
-[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/JDKamalakar/DMS-DNS_Switcher/graphs/commit-activity)
+<a href="https://github.com/JDKamalakar/DMS-DNS_Switcher">
+    <img src="assets/icons/google.svg" alt="DNS Switcher logo" title="DNS Switcher logo" width="80"/>
+</a>
 
-An elegant implementation of a **DNS Switcher** Dankbar widget and Control Center panel, specifically designed for the **Dank Material Shell** (DMS) environment.
+# DNS Switcher [App](#)
 
-Quickly toggle between popular DNS providers like Google, Cloudflare, and AdGuard, or configure your own, all with a seamless, material-inspired UI and premium animations.
+### Premium DNS Management
+Monitor and switch your system DNS providers – easier than ever on the Dank Material Shell.
 
----
+[![Discord server](https://img.shields.io/discord/1195734228319617024.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/dms)
+[![GitHub downloads](https://img.shields.io/github/downloads/JDKamalakar/DMS-DNS_Switcher/total?label=downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/JDKamalakar/DMS-DNS_Switcher/releases)
 
-## ✨ Features
+[![DMS Compatible](https://img.shields.io/badge/DMS-Compatible-purple.svg?labelColor=27303D)](https://github.com/Dank-Material-Shell)
+[![License](https://img.shields.io/badge/License-DMS-blue.svg?labelColor=27303D&color=0877d2)](https://github.com/DankMaterialShell)
+[![Maintenance Status](https://img.shields.io/badge/Status-Maintained-green.svg?labelColor=27303D&color=946300)](https://github.com/JDKamalakar/DMS-DNS_Switcher/graphs/commit-activity)
 
-* **Instant DNS Switching:** One-click toggling between popular DNS providers (Google, Cloudflare, OpenDNS, etc.).
-* **Real-time Monitoring:** Always know your current DNS provider and IP address directly from the Dankbar.
-* **Custom Configuration:** Add your own custom DNS providers with personalized names and icons.
-* **Premium Animations:** Smooth "slide-and-fade" transitions for all status changes, matching the core DMS design language.
-* **Dankbar Support:** Compact "Pill" widgets for both horizontal and vertical panel bars.
-* **Settings Integration:** Dedicated settings panel to manage provider visibility and custom configurations.
+## Download
 
----
+[![DMS Plugin Gallery](https://img.shields.io/badge/DMS-Plugin%20Gallery-06599d?style=flat-square&logo=linux&logoColor=white)](https://danklinux.com/plugins)
+[![GitHub Releases](https://img.shields.io/github/v/release/JDKamalakar/DMS-DNS_Switcher.svg?maxAge=3600&label=Releases&labelColor=2c2c47&color=1c1c39)](https://github.com/JDKamalakar/DMS-DNS_Switcher/releases)
 
-## 📸 Interface Preview
+*Requires Dank Material Shell (DMS) 1.0 or higher.*
 
-### 🖥️ Main Display
-| Pop-Up UI |
-| :--- |
-| <img width="383" height="1224" alt="Pop-UI" src="assets/POP-Up_UI.png" /> |
+## Features
+
+<div align="left">
+
+* **Instant Switching**: One-click toggling between Google, Cloudflare, OpenDNS, and more.
+* **Real-time Monitoring**: Live status of your current DNS provider and active connection.
+* **Custom Configuration**: Add your own DNS servers with personalized names and icons.
+* **Material Aesthetics**: Smooth animations and transitions that feel native to DMS.
+* **Multi-Widget Support**: Compact pills for panels and a full Control Center detail view.
+* **Deep Settings**: Full control over provider visibility and custom configurations.
+
+</div>
+
+## Interface
+
+<div align="center">
+  <img src="assets/POP-Up_UI.png" width="45%" />
+  <img src="assets/QS_UI.png" width="45%" />
+</div>
+
+## Configuration
+
+<div align="center">
+  <img src="assets/Settings.png" width="80%" />
+</div>
+
+## Contributing
+
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+
+Before reporting a new issue, take a look at the [FAQ](https://github.com/JDKamalakar/DMS-DNS_Switcher/wiki), the [changelog](https://github.com/JDKamalakar/DMS-DNS_Switcher/releases) and the already opened [issues](https://github.com/JDKamalakar/DMS-DNS_Switcher/issues).
 
 
-| QS (Control Center) UI |
-| :--- |
-| <img width="623" height="636" alt="QS Center UI" src="assets/QS_UI.png" /> |
+### Credits
 
+Built with ❤️ for the [Dank Material Shell](https://github.com/DankMaterialShell) community.
 
-### ⚙️ Configuration
-| Settings UI |
-| :--- |
-| <img width="584" height="1236" alt="Settings UI" src="assets/Settings.png" />|
+<a href="https://github.com/JDKamalakar/DMS-DNS_Switcher/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=JDKamalakar/DMS-DNS_Switcher" alt="DNS Switcher contributors" title="DNS Switcher contributors" width="400"/>
+</a>
 
----
+### Disclaimer
 
-## 🛠️ Installation
+The developer(s) of this application does not have any affiliation with the DNS providers listed, and this application only provides a UI for system settings.
 
-### 🚀 Recommended: DMS Plugin Manager
-The easiest way to install and stay updated:
-1. Open your **DMS Settings**.
-2. Navigate to the **Plugin Manager** tab.
-3. Search for `DMS-DNS_Switcher` and click **Install**.
-4. Alternatively, browse the [Dank Linux Plugin Gallery](https://danklinux.com/plugins#/).
-
-### 🛠️ Manual Installation
-For developers or users who want the latest edge builds:
-1. Clone this repository into your DMS extensions/plugins folder:
-   ```bash
-   git clone https://github.com/JDKamalakar/DMS-DNS_Switcher.git
-   ```
-
----
-
-## 🐛 Feedback & Contributions
-
-Found a bug or have a feature request? Let’s make this better together.
-
-* **Report Issues:** [GitHub Issues](https://github.com/JDKamalakar/DMS-DNS_Switcher/issues/new/choose)
-* **Contributions:** Pull requests are welcome! Please ensure your code follows the shell's design guidelines.
-
----
-
-*Created with ❤️ for the Dank Material Shell Community.*
-
-## 📜 License
+### 📜 License
 
 Part of DankMaterialShell. Check the main repository for license information.
 
-## 🤝 Credits
-
-Built for [DankMaterialShell](https://github.com/DankMaterialShell)
+</div>
