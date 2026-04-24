@@ -61,7 +61,7 @@ Before reporting a new issue, take a look at the [FAQ](https://github.com/JDKama
 Built with ❤️ for the [Dank Material Shell](https://github.com/DankMaterialShell) community.
 
 <a href="https://github.com/JDKamalakar/DMS-DNS_Switcher/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=JDKamalakar/DMS-DNS_Switcher" alt="DNS Switcher contributors" title="DNS Switcher contributors" width="400"/>
+    <img src="https://contrib.rocks/image?repo=JDKamalakar/DMS-DNS_Switcher" alt="DNS Switcher contributors" title="DNS Switcher contributors" width="100"/>
 </a>
 
 ### Disclaimer
