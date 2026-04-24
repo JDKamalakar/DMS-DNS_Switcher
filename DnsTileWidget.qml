@@ -21,16 +21,7 @@ PluginComponent {
     ccWidgetSecondaryText: root.providerName === "System Default" ? "Automatic" : root.providerName
     ccWidgetIsActive: root.isManualDns
     ccDetailHeight: 480
-    onCcWidgetExpanded: {
-        // Defer refresh to avoid stutter during expansion animation
-        refreshTimer.restart();
-    }
-
-    Timer {
-        id: refreshTimer
-        interval: 150
-        onTriggered: root.refresh()
-    }
+    onCcWidgetExpanded: root.refresh()
     
     ccDetailContent: Component {
         ScrollView {
@@ -41,13 +32,8 @@ PluginComponent {
             
             Loader {
                 width: parent.width
-                asynchronous: true
                 sourceComponent: dnsWidgetContent
                 readonly property bool inCC: true
-                
-                // Fade in content once loaded for better UX
-                opacity: status === Loader.Ready ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: 200 } }
             }
         }
     }
@@ -192,54 +178,116 @@ PluginComponent {
     // --- Bar Pill ---
     horizontalBarPill: Component {
         RowLayout {
-            spacing: 6; anchors.verticalCenter: parent.verticalCenter
-            Loader {
-                Layout.preferredWidth: Theme.iconSize - 4; Layout.preferredHeight: Theme.iconSize - 4
-                sourceComponent: root.currentIcon.includes("/") ? customPillIconH : standardPillIconH
-                Component { id: standardPillIconH; DankIcon { name: root.currentIcon; size: Theme.iconSize - 4; color: Theme.widgetIconColor || Theme.primary } }
-                Component { 
-                    id: customPillIconH
-                    Item {
-                        width: Theme.iconSize - 4; height: Theme.iconSize - 4
-                        Image { id: pillImgH; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent; sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true }
-                        ColorOverlay { anchors.fill: pillImgH; source: pillImgH; color: Theme.widgetIconColor || Theme.primary }
+            id: pillRowH; spacing: 6; anchors.verticalCenter: parent.verticalCenter
+            Item {
+                width: Theme.iconSize - 4; height: Theme.iconSize - 4
+                Layout.alignment: Qt.AlignVCenter
+                Loader {
+                    id: pillIconLoaderH
+                    anchors.fill: parent
+                    sourceComponent: root.loading ? refreshingIconComp : (root.currentIcon.includes("/") ? customPillIconH : standardPillIconH)
+                    
+                    readonly property string _trigger: root.loading + "|" + root.currentIcon
+                    on_TriggerChanged: pillIconAnimH.restart()
+                    
+                    transform: Translate { id: pillIconTransH }
+                    SequentialAnimation {
+                        id: pillIconAnimH
+                        ParallelAnimation {
+                            NumberAnimation { target: pillIconLoaderH; property: "opacity"; to: 0; duration: 150; easing.type: Easing.OutQuad }
+                            NumberAnimation { target: pillIconTransH; property: "y"; to: 5; duration: 150; easing.type: Easing.OutQuad }
+                        }
+                        PropertyAction { target: pillIconTransH; property: "y"; value: -5 }
+                        ParallelAnimation {
+                            NumberAnimation { target: pillIconLoaderH; property: "opacity"; to: 1; duration: 150; easing.type: Easing.InQuad }
+                            NumberAnimation { target: pillIconTransH; property: "y"; to: 0; duration: 150; easing.type: Easing.InQuad }
+                        }
+                    }
+                    
+                    Component { id: standardPillIconH; DankIcon { name: root.currentIcon; size: Theme.iconSize - 4; color: Theme.widgetIconColor || Theme.primary; anchors.centerIn: parent } }
+                    Component { 
+                        id: customPillIconH
+                        Item {
+                            anchors.fill: parent
+                            Image { id: pillImgH; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent; sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true }
+                            ColorOverlay { anchors.fill: pillImgH; source: pillImgH; color: Theme.widgetIconColor || Theme.primary }
+                        }
                     }
                 }
             }
-            StyledText { 
-                text: root.providerName === "System Default" ? "Auto" : root.providerName
-                font.pixelSize: Theme.fontSizeSmall - 2; font.weight: Font.Medium
-                color: Theme.widgetTextColor || Theme.surfaceText
+            Item {
+                height: 20; Layout.fillWidth: false; Layout.preferredWidth: Math.max(pillTextH.implicitWidth, 60); Layout.alignment: Qt.AlignVCenter
+                StyledText { 
+                    id: pillTextH
+                    text: root.loading ? "Changing..." : (root.providerName === "System Default" ? "Auto" : root.providerName)
+                    font.pixelSize: Theme.fontSizeSmall - 1; font.weight: Font.Medium
+                    color: Theme.widgetTextColor || Theme.surfaceText
+                    anchors.verticalCenter: parent.verticalCenter
+                    
+                    onTextChanged: pillTextAnimH.restart()
+                    transform: Translate { id: pillTextTransH }
+                    SequentialAnimation {
+                        id: pillTextAnimH
+                        ParallelAnimation {
+                            NumberAnimation { target: pillTextH; property: "opacity"; to: 0; duration: 150; easing.type: Easing.OutQuad }
+                            NumberAnimation { target: pillTextTransH; property: "y"; to: 5; duration: 150; easing.type: Easing.OutQuad }
+                        }
+                        PropertyAction { target: pillTextTransH; property: "y"; value: -5 }
+                        ParallelAnimation {
+                            NumberAnimation { target: pillTextH; property: "opacity"; to: 1; duration: 150; easing.type: Easing.InQuad }
+                            NumberAnimation { target: pillTextTransH; property: "y"; to: 0; duration: 150; easing.type: Easing.InQuad }
+                        }
+                    }
+                }
             }
         }
     }
 
     verticalBarPill: Component {
-        ColumnLayout {
-            spacing: 2; anchors.horizontalCenter: parent.horizontalCenter
+        Item {
+            width: 18; height: 18
+            anchors.horizontalCenter: parent.horizontalCenter
             Loader {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: 18; Layout.preferredHeight: 18
-                sourceComponent: root.currentIcon.includes("/") ? customPillIconV : standardPillIconV
-                Component { id: standardPillIconV; DankIcon { name: root.currentIcon; size: 18; color: Theme.widgetIconColor || Theme.primary } }
+                id: pillIconLoaderV
+                anchors.fill: parent
+                sourceComponent: root.loading ? refreshingIconComp : (root.currentIcon.includes("/") ? customPillIconV : standardPillIconV)
+                
+                readonly property string _trigger: root.loading + "|" + root.currentIcon
+                on_TriggerChanged: pillIconAnimV.restart()
+                
+                transform: Translate { id: pillIconTransV }
+                SequentialAnimation {
+                    id: pillIconAnimV
+                    ParallelAnimation {
+                        NumberAnimation { target: pillIconLoaderV; property: "opacity"; to: 0; duration: 150; easing.type: Easing.OutQuad }
+                        NumberAnimation { target: pillIconTransV; property: "y"; to: 5; duration: 150; easing.type: Easing.OutQuad }
+                    }
+                    PropertyAction { target: pillIconTransV; property: "y"; value: -5 }
+                    ParallelAnimation {
+                        NumberAnimation { target: pillIconLoaderV; property: "opacity"; to: 1; duration: 150; easing.type: Easing.InQuad }
+                        NumberAnimation { target: pillIconTransV; property: "y"; to: 0; duration: 150; easing.type: Easing.InQuad }
+                    }
+                }
+
+                Component { id: standardPillIconV; DankIcon { name: root.currentIcon; size: 18; color: Theme.widgetIconColor || Theme.primary; anchors.centerIn: parent } }
                 Component { 
                     id: customPillIconV
                     Item {
-                        width: 18; height: 18
+                        anchors.fill: parent
                         Image { id: pillImgV; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent; sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true }
                         ColorOverlay { anchors.fill: pillImgV; source: pillImgV; color: Theme.widgetIconColor || Theme.primary }
                     }
                 }
             }
-            StyledText { 
-                text: root.providerName === "System Default" ? "Auto" : root.providerName
-                font.pixelSize: 8; font.weight: Font.Bold
-                color: Theme.widgetTextColor || Theme.surfaceText
-                Layout.alignment: Qt.AlignHCenter
-                elide: Text.ElideRight
-                width: 32
-                horizontalAlignment: Text.AlignHCenter
-            }
+        }
+    }
+
+    Component {
+        id: refreshingIconComp
+        DankIcon {
+            name: "cached"; size: parent.width; color: Theme.widgetIconColor || Theme.primary
+            anchors.centerIn: parent
+            RotationAnimation on rotation { from: 0; to: 360; duration: 1000; loops: Animation.Infinite }
         }
     }
 
@@ -253,12 +301,8 @@ PluginComponent {
             
             Loader {
                 width: parent.width
-                asynchronous: true
                 sourceComponent: dnsWidgetContent
                 readonly property bool inCC: false
-                
-                opacity: status === Loader.Ready ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: 200 } }
             }
         }
     }
@@ -290,46 +334,71 @@ PluginComponent {
                         anchors.fill: parent; anchors.margins: Theme.spacingM; spacing: Theme.spacingM
                         Rectangle {
                             width: 42; height: 42; radius: 21; color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.2)
-                            Loader {
-                                anchors.centerIn: parent
+                            Item {
                                 width: 24; height: 24
-                                sourceComponent: root.currentIcon.includes("/") ? customHeaderIcon : standardHeaderIcon
-                                
-                                Component {
-                                    id: standardHeaderIcon
-                                    DankIcon { name: root.currentIcon; size: 24; color: Theme.primary; anchors.centerIn: parent }
-                                }
-                                Component {
-                                    id: customHeaderIcon
-                                    Item {
-                                        width: 24; height: 24
-                                        Image {
-                                            id: headerImg; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent
-                                            sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true
+                                anchors.centerIn: parent
+                                Loader {
+                                    id: headerIconLoader
+                                    anchors.fill: parent
+                                    sourceComponent: root.loading ? refreshingIconCompHeader : (root.currentIcon.includes("/") ? customHeaderIcon : standardHeaderIcon)
+                                    
+                                    readonly property string _trigger: root.loading ? "loading" : root.currentIcon
+                                    on_TriggerChanged: iconAnim.restart()
+                                    
+                                    transform: Translate { id: iconTransH }
+                                    SequentialAnimation {
+                                        id: iconAnim
+                                        ParallelAnimation {
+                                            NumberAnimation { target: headerIconLoader; property: "opacity"; to: 0; duration: 150; easing.type: Easing.OutQuad }
+                                            NumberAnimation { target: iconTransH; property: "y"; to: 5; duration: 150; easing.type: Easing.OutQuad }
                                         }
-                                        ColorOverlay {
-                                            anchors.fill: headerImg; source: headerImg; color: Theme.primary
+                                        PropertyAction { target: iconTransH; property: "y"; value: -5 }
+                                        ParallelAnimation {
+                                            NumberAnimation { target: headerIconLoader; property: "opacity"; to: 1; duration: 150; easing.type: Easing.InQuad }
+                                            NumberAnimation { target: iconTransH; property: "y"; to: 0; duration: 150; easing.type: Easing.InQuad }
                                         }
                                     }
                                 }
                             }
                         }
+
                         Column {
-                            Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 1
+                            Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 0
                             StyledText { 
+                                id: connectionNameText
+                                Layout.fillWidth: true
                                 text: root.activeConnection || "No Connection"
                                 font.bold: true; font.pixelSize: Theme.fontSizeLarge; color: Theme.surfaceText 
-                                elide: Text.ElideRight; width: parent.width
-                                Behavior on text { SequentialAnimation { NumberAnimation { target: parent; property: "opacity"; to: 0; duration: 100 } PropertyAction {} NumberAnimation { target: parent; property: "opacity"; to: 1; duration: 100 } } }
+                                elide: Text.ElideRight
+                                verticalAlignment: Text.AlignVCenter
+                                
+                                onTextChanged: connNameAnim.restart()
+                                transform: Translate { id: connTrans }
+                                SequentialAnimation {
+                                    id: connNameAnim
+                                    ParallelAnimation {
+                                        NumberAnimation { target: connectionNameText; property: "opacity"; to: 0; duration: 150; easing.type: Easing.OutQuad }
+                                        NumberAnimation { target: connTrans; property: "y"; to: 5; duration: 150; easing.type: Easing.OutQuad }
+                                    }
+                                    PropertyAction { target: connTrans; property: "y"; value: -5 }
+                                    ParallelAnimation {
+                                        NumberAnimation { target: connectionNameText; property: "opacity"; to: 1; duration: 150; easing.type: Easing.InQuad }
+                                        NumberAnimation { target: connTrans; property: "y"; to: 0; duration: 150; easing.type: Easing.InQuad }
+                                    }
+                                }
                             }
                             StyledText { 
+                                id: statusLabelText
+                                Layout.fillWidth: true
                                 text: root.statusLabel
                                 font.pixelSize: Theme.fontSizeSmall - 1
                                 color: Theme.primary
                                 font.family: "Monospace"
                                 opacity: 0.8
+                                verticalAlignment: Text.AlignVCenter
                             }
                         }
+
                         Item {
                             width: 38
                             height: 38
@@ -340,8 +409,9 @@ PluginComponent {
                             MouseArea {
                                 id: refreshArea
                                 anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
+                                hoverEnabled: !root.loading
+                                enabled: !root.loading
+                                cursorShape: root.loading ? Qt.ArrowCursor : Qt.PointingHandCursor
                                 onPressed: mouse => refreshRipple.trigger(mouse.x, mouse.y)
                                 onClicked: {
                                     root.refresh()
@@ -390,6 +460,32 @@ PluginComponent {
                             }
                         }
                     }
+
+                    Component {
+                        id: standardHeaderIcon
+                        DankIcon { name: root.currentIcon; size: 24; color: Theme.primary; anchors.centerIn: parent }
+                    }
+                    Component {
+                        id: customHeaderIcon
+                        Item {
+                            width: 24; height: 24
+                            Image {
+                                id: headerImg; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent
+                                sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true
+                            }
+                            ColorOverlay {
+                                anchors.fill: headerImg; source: headerImg; color: Theme.primary
+                            }
+                        }
+                    }
+                    Component {
+                        id: refreshingIconCompHeader
+                        DankIcon {
+                            name: "cached"; size: 24; color: Theme.primary
+                            anchors.centerIn: parent
+                            RotationAnimation on rotation { from: 0; to: 360; duration: 1000; loops: Animation.Infinite }
+                        }
+                    }
                 }
 
                 StyledRect {
@@ -401,15 +497,54 @@ PluginComponent {
                     RowLayout {
                         anchors.fill: parent; anchors.margins: Theme.spacingM
                         DankIcon { name: "settings_ethernet"; size: 16; color: Theme.surfaceText; opacity: 0.7 }
-                        StyledText { 
-                            text: "Current DNS: " + root.providerName
-                            font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceText
-                            Layout.fillWidth: true
-                            Behavior on text { SequentialAnimation { NumberAnimation { target: parent; property: "opacity"; to: 0; duration: 100 } PropertyAction {} NumberAnimation { target: parent; property: "opacity"; to: 1; duration: 100 } } }
+                        Item {
+                            Layout.fillWidth: true; height: 18
+                            StyledText { 
+                                id: providerNameLabel
+                                width: parent.width
+                                text: "Current DNS: " + root.providerName
+                                font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceText
+                                
+                                onTextChanged: providerNameAnim.restart()
+                                transform: Translate { id: provNameTrans }
+                                SequentialAnimation {
+                                    id: providerNameAnim
+                                    ParallelAnimation {
+                                        NumberAnimation { target: providerNameLabel; property: "opacity"; to: 0; duration: 150; easing.type: Easing.OutQuad }
+                                        NumberAnimation { target: provNameTrans; property: "y"; to: 5; duration: 150; easing.type: Easing.OutQuad }
+                                    }
+                                    PropertyAction { target: provNameTrans; property: "y"; value: -5 }
+                                    ParallelAnimation {
+                                        NumberAnimation { target: providerNameLabel; property: "opacity"; to: 1; duration: 150; easing.type: Easing.InQuad }
+                                        NumberAnimation { target: provNameTrans; property: "y"; to: 0; duration: 150; easing.type: Easing.InQuad }
+                                    }
+                                }
+                            }
                         }
-                        StyledText {
-                            text: root.currentDns ? root.currentDns.split(/[\s,]+/)[0] : "192.168.1.1"
-                            font.pixelSize: Theme.fontSizeSmall - 2; font.family: "Monospace"; color: Theme.primary; opacity: 0.6
+                        Item {
+                            width: 100; height: 18
+                            StyledText {
+                                id: providerIpLabel
+                                width: parent.width
+                                text: root.currentDns ? root.currentDns.split(/[\s,]+/)[0] : "192.168.1.1"
+                                font.pixelSize: Theme.fontSizeSmall - 2; font.family: "Monospace"; color: Theme.primary; opacity: 0.6
+                                horizontalAlignment: Text.AlignRight
+                                
+                                onTextChanged: providerIpAnim.restart()
+                                transform: Translate { id: provIpTrans }
+                                SequentialAnimation {
+                                    id: providerIpAnim
+                                    ParallelAnimation {
+                                        NumberAnimation { target: providerIpLabel; property: "opacity"; to: 0; duration: 150; easing.type: Easing.OutQuad }
+                                        NumberAnimation { target: provIpTrans; property: "y"; to: 5; duration: 150; easing.type: Easing.OutQuad }
+                                    }
+                                    PropertyAction { target: provIpTrans; property: "y"; value: -5 }
+                                    ParallelAnimation {
+                                        NumberAnimation { target: providerIpLabel; property: "opacity"; to: 0.6; duration: 150; easing.type: Easing.InQuad }
+                                        NumberAnimation { target: provIpTrans; property: "y"; to: 0; duration: 150; easing.type: Easing.InQuad }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -445,6 +580,10 @@ PluginComponent {
 
                         Column {
                             id: presetsList; width: parent.width; spacing: 4
+                            enabled: !root.loading
+                            opacity: root.loading ? 0.6 : 1.0
+                            Behavior on opacity { NumberAnimation { duration: 200 } }
+                            
                             Repeater {
                                 model: root.providers
                                 delegate: Item {
@@ -453,7 +592,9 @@ PluginComponent {
                                      property bool isActive: root.providerName === modelData.name
 
                                      MouseArea {
-                                         id: maPreset; anchors.fill: parent; hoverEnabled: true
+                                         id: maPreset; anchors.fill: parent; hoverEnabled: !root.loading
+                                         enabled: !root.loading
+                                         cursorShape: root.loading ? Qt.ArrowCursor : Qt.PointingHandCursor
                                          onClicked: root.setDns(modelData.ip)
                                          onPressed: (m) => pRip.trigger(m.x, m.y)
                                      }
@@ -605,6 +746,9 @@ PluginComponent {
 
                     Column {
                         id: customCol; anchors.fill: parent; anchors.margins: Theme.spacingM; spacing: Theme.spacingM
+                        enabled: !root.loading
+                        opacity: root.loading ? 0.6 : 1.0
+                        Behavior on opacity { NumberAnimation { duration: 200 } }
                         
                         RowLayout {
                             width: parent.width; spacing: Theme.spacingXS
