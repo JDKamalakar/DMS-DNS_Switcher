@@ -4,7 +4,7 @@
     <img src="assets/icons/google.svg" alt="DNS Switcher logo" title="DNS Switcher logo" width="80"/>
 </a>
 
-# DNS Switcher [App](#)
+# [DMS-DNS_Switcher](#)
 
 ### Premium DNS Management
 Monitor and switch your system DNS providers – easier than ever on the Dank Material Shell.
