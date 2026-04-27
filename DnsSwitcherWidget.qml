@@ -17,7 +17,7 @@ PluginComponent {
 
     // --- CC Support ---
     ccWidgetIcon: "dns"
-    ccWidgetPrimaryText: "DNS Settings"
+    ccWidgetPrimaryText: "DNS Switcher"
     ccWidgetSecondaryText: root.providerName === "System Default" ? "Automatic" : root.providerName
     ccWidgetIsActive: root.isManualDns
     ccDetailHeight: 480
