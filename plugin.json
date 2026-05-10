@@ -10,19 +10,20 @@
     "component": "./DnsSwitcherWidget.qml",
     "settings": "./DnsSwitcherSettings.qml",
     "capabilities": [
-        "dankbar-widget"
+        "dankbar-widget",
+        "control-center"
     ],
-    "repo": "",
-    "screenshot": "",
-    "dependencies": [
-        "dms"
-    ],
+    "repo": "https://github.com/JDKamalakar/DMS-DNS_Switcher",
     "compositors": [
         "any"
     ],
     "distro": [
         "any"
     ],
+    "dependencies": [
+        "dms"
+    ],
+    "screenshot": "https://raw.githubusercontent.com/JDKamalakar/DMS-DNS_Switcher/refs/heads/main/assets/POP-Up_UI.png",
     "permissions": [
         "process",
         "settings_read",
