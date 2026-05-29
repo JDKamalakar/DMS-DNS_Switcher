@@ -7,7 +7,7 @@ import qs.Widgets
 import qs.Modules.Plugins
 import qs.Services
 import QtQuick.Controls
-import Qt5Compat.GraphicalEffects
+import QtQuick.Effects
 
 PluginComponent {
     id: root
@@ -118,7 +118,7 @@ PluginComponent {
     Process {
         id: dnsScanner
         running: false
-        command: ["bash", "-c", `dns="$(resolvectl status | grep 'DNS Servers' | sed 's/.*DNS Servers:[ \t]*//')"; man="$(nmcli -g ipv4.ignore-auto-dns connection show "${root.activeConnection}")"; echo "$dns|$man"`]
+        command: ["bash", "-c", `dns="$(nmcli -g IP4.DNS connection show "${root.activeConnection}" 2>/dev/null | tr '|' ' ' | tr -s ' ')"; if [ -z "$dns" ]; then iface="$(nmcli -t -f DEVICE connection show --active | head -n 1)"; dns="$(resolvectl status "$iface" 2>/dev/null | grep 'DNS Servers' | tail -n 1 | sed 's/.*DNS Servers:[ \t]*//')"; fi; man="$(nmcli -g ipv4.ignore-auto-dns connection show "${root.activeConnection}")"; echo "$dns|$man"`]
         stdout: StdioCollector {
             onStreamFinished: {
                 let parts = text.trim().split('|');
@@ -209,8 +209,15 @@ PluginComponent {
                         id: customPillIconH
                         Item {
                             anchors.fill: parent
-                            Image { id: pillImgH; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent; sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true }
-                            ColorOverlay { anchors.fill: pillImgH; source: pillImgH; color: Theme.widgetIconColor || Theme.primary }
+                            Image {
+                                id: pillImgH; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent
+                                sourceSize.width: 24; sourceSize.height: 24; smooth: true
+                                layer.enabled: true
+                                layer.effect: MultiEffect {
+                                    colorization: 1
+                                    colorizationColor: Theme.widgetIconColor || Theme.primary
+                                }
+                            }
                         }
                     }
                 }
@@ -274,8 +281,15 @@ PluginComponent {
                     id: customPillIconV
                     Item {
                         anchors.fill: parent
-                        Image { id: pillImgV; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent; sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true }
-                        ColorOverlay { anchors.fill: pillImgV; source: pillImgV; color: Theme.widgetIconColor || Theme.primary }
+                        Image {
+                            id: pillImgV; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent
+                            sourceSize.width: 24; sourceSize.height: 24; smooth: true
+                            layer.enabled: true
+                            layer.effect: MultiEffect {
+                                colorization: 1
+                                colorizationColor: Theme.widgetIconColor || Theme.primary
+                            }
+                        }
                     }
                 }
             }
@@ -324,10 +338,15 @@ PluginComponent {
                     border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
                     
                     layer.enabled: true
-                    layer.effect: DropShadow {
-                        transparentBorder: true; horizontalOffset: 0; verticalOffset: 3
-                        radius: 12.0; samples: 24
-                        color: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
+                    layer.effect: MultiEffect {
+                        autoPaddingEnabled: true
+                        shadowEnabled: true
+                        blurEnabled: false
+                        maskEnabled: false
+                        shadowVerticalOffset: 3
+                        shadowHorizontalOffset: 0
+                        shadowBlur: 0.4
+                        shadowColor: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
                     }
 
                     RowLayout {
@@ -471,10 +490,12 @@ PluginComponent {
                             width: 24; height: 24
                             Image {
                                 id: headerImg; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent
-                                sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true
-                            }
-                            ColorOverlay {
-                                anchors.fill: headerImg; source: headerImg; color: Theme.primary
+                                sourceSize.width: 24; sourceSize.height: 24; smooth: true
+                                layer.enabled: true
+                                layer.effect: MultiEffect {
+                                    colorization: 1
+                                    colorizationColor: Theme.primary
+                                }
                             }
                         }
                     }
@@ -560,10 +581,15 @@ PluginComponent {
                     border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
                     
                     layer.enabled: true
-                    layer.effect: DropShadow {
-                        transparentBorder: true; horizontalOffset: 0; verticalOffset: 3
-                        radius: 12.0; samples: 24
-                        color: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
+                    layer.effect: MultiEffect {
+                        autoPaddingEnabled: true
+                        shadowEnabled: true
+                        blurEnabled: false
+                        maskEnabled: false
+                        shadowVerticalOffset: 3
+                        shadowHorizontalOffset: 0
+                        shadowBlur: 0.4
+                        shadowColor: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
                     }
 
                     Column {
@@ -696,14 +722,13 @@ PluginComponent {
                                                          anchors.fill: parent
                                                          sourceSize.width: 18
                                                          sourceSize.height: 18
-                                                         visible: false
                                                          smooth: true
-                                                     }
-                                                     ColorOverlay {
-                                                         anchors.fill: imgIcon
-                                                         source: imgIcon
-                                                         color: isActive ? Theme.primary : Theme.surfaceVariantText
-                                                         Behavior on color { ColorAnimation { duration: 200 } }
+                                                         layer.enabled: true
+                                                         layer.effect: MultiEffect {
+                                                             colorization: 1
+                                                             colorizationColor: isActive ? Theme.primary : Theme.surfaceVariantText
+                                                             Behavior on colorizationColor { ColorAnimation { duration: 200 } }
+                                                         }
                                                      }
                                                  }
                                              }
@@ -738,10 +763,15 @@ PluginComponent {
                     border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
                     
                     layer.enabled: true
-                    layer.effect: DropShadow {
-                        transparentBorder: true; horizontalOffset: 0; verticalOffset: 3
-                        radius: 12.0; samples: 24
-                        color: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
+                    layer.effect: MultiEffect {
+                        autoPaddingEnabled: true
+                        shadowEnabled: true
+                        blurEnabled: false
+                        maskEnabled: false
+                        shadowVerticalOffset: 3
+                        shadowHorizontalOffset: 0
+                        shadowBlur: 0.4
+                        shadowColor: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
                     }
 
                     Column {

@@ -68,7 +68,7 @@ PluginSettings {
                     DankIcon { name: "visibility"; size: 22; anchors.verticalCenter: parent.verticalCenter; opacity: 0.8 }
                     Column {
                         width: parent.width - 22 - Theme.spacingM
-                        spacing: Theme.spacingXXS
+                        spacing: Theme.spacingXS
                         StyledText { text: "Provider Visibility"; font.weight: Font.Medium; color: Theme.surfaceText }
                         StyledText { text: "Choose which DNS providers appear in the widget."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
                     }
@@ -138,7 +138,7 @@ PluginSettings {
                     DankIcon { name: "add_circle"; size: 22; anchors.verticalCenter: parent.verticalCenter; opacity: 0.8 }
                     Column {
                         width: parent.width - 22 - Theme.spacingM
-                        spacing: Theme.spacingXXS
+                        spacing: Theme.spacingXS
                         StyledText { text: "Custom Presets"; font.weight: Font.Medium; color: Theme.surfaceText }
                         StyledText { text: "Add your own DNS servers to the quick list."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
                     }
