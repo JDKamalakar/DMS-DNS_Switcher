@@ -7,7 +7,7 @@ import qs.Widgets
 import qs.Modules.Plugins
 import qs.Services
 import QtQuick.Controls
-import Qt5Compat.GraphicalEffects
+import QtQuick.Effects
 
 PluginComponent {
     id: root
@@ -210,7 +210,7 @@ PluginComponent {
                         Item {
                             anchors.fill: parent
                             Image { id: pillImgH; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent; sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true }
-                            ColorOverlay { anchors.fill: pillImgH; source: pillImgH; color: Theme.widgetIconColor || Theme.primary }
+                            MultiEffect { anchors.fill: pillImgH; source: pillImgH; colorization: 1.0; colorizationColor: Theme.widgetIconColor || Theme.primary }
                         }
                     }
                 }
@@ -275,7 +275,7 @@ PluginComponent {
                     Item {
                         anchors.fill: parent
                         Image { id: pillImgV; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent; sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true }
-                        ColorOverlay { anchors.fill: pillImgV; source: pillImgV; color: Theme.widgetIconColor || Theme.primary }
+                        MultiEffect { anchors.fill: pillImgV; source: pillImgV; colorization: 1.0; colorizationColor: Theme.widgetIconColor || Theme.primary }
                     }
                 }
             }
@@ -322,13 +322,6 @@ PluginComponent {
                     color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
                     border.width: 1
                     border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
-                    
-                    layer.enabled: true
-                    layer.effect: DropShadow {
-                        transparentBorder: true; horizontalOffset: 0; verticalOffset: 3
-                        radius: 12.0; samples: 24
-                        color: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
-                    }
 
                     RowLayout {
                         anchors.fill: parent; anchors.margins: Theme.spacingM; spacing: Theme.spacingM
@@ -473,8 +466,8 @@ PluginComponent {
                                 id: headerImg; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent
                                 sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true
                             }
-                            ColorOverlay {
-                                anchors.fill: headerImg; source: headerImg; color: Theme.primary
+                            MultiEffect {
+                                anchors.fill: headerImg; source: headerImg; colorization: 1.0; colorizationColor: Theme.primary
                             }
                         }
                     }
@@ -492,7 +485,7 @@ PluginComponent {
                     width: parent.width - (mainCol.inCC ? 32 : 0); height: 50
                     anchors.horizontalCenter: parent.horizontalCenter
                     radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
-                    border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
+                    border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
                     
                     RowLayout {
                         anchors.fill: parent; anchors.margins: Theme.spacingM
@@ -558,13 +551,6 @@ PluginComponent {
                     radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
                     border.width: 1
                     border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
-                    
-                    layer.enabled: true
-                    layer.effect: DropShadow {
-                        transparentBorder: true; horizontalOffset: 0; verticalOffset: 3
-                        radius: 12.0; samples: 24
-                        color: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
-                    }
 
                     Column {
                         id: presetsContentCol
@@ -621,12 +607,14 @@ PluginComponent {
                                              : hovered
                                                  ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
                                                  : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.04)
+                                         Behavior on paintColor { ColorAnimation { duration: 150 } }
                                          
                                          property color paintBorder: isActive
                                              ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.6)
                                              : hovered
                                                  ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.4)
                                                  : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.15)
+                                         Behavior on paintBorder { ColorAnimation { duration: 150 } }
 
                                          onTlrAnimChanged: requestPaint()
                                          onTrrAnimChanged: requestPaint()
@@ -699,11 +687,12 @@ PluginComponent {
                                                          visible: false
                                                          smooth: true
                                                      }
-                                                     ColorOverlay {
+                                                     MultiEffect {
                                                          anchors.fill: imgIcon
                                                          source: imgIcon
-                                                         color: isActive ? Theme.primary : Theme.surfaceVariantText
-                                                         Behavior on color { ColorAnimation { duration: 200 } }
+                                                         colorization: 1.0
+                                                         colorizationColor: isActive ? Theme.primary : Theme.surfaceVariantText
+                                                         Behavior on colorizationColor { ColorAnimation { duration: 200 } }
                                                      }
                                                  }
                                              }
@@ -736,13 +725,6 @@ PluginComponent {
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                     radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
                     border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
-                    
-                    layer.enabled: true
-                    layer.effect: DropShadow {
-                        transparentBorder: true; horizontalOffset: 0; verticalOffset: 3
-                        radius: 12.0; samples: 24
-                        color: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
-                    }
 
                     Column {
                         id: customCol; anchors.fill: parent; anchors.margins: Theme.spacingM; spacing: Theme.spacingM
