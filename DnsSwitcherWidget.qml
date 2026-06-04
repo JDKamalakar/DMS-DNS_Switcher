@@ -209,7 +209,7 @@ PluginComponent {
                         id: customPillIconH
                         Item {
                             anchors.fill: parent
-                            Image { id: pillImgH; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent; sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true }
+                            Image { id: pillImgH; source: Qt.resolvedUrl(!Theme.isLightMode && root.currentIcon.endsWith(".svg") ? root.currentIcon.replace(".svg", "_white.svg") : root.currentIcon); anchors.fill: parent; sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true }
                             MultiEffect { anchors.fill: pillImgH; source: pillImgH; colorization: 1.0; colorizationColor: Theme.widgetIconColor || Theme.primary }
                         }
                     }
@@ -274,7 +274,7 @@ PluginComponent {
                     id: customPillIconV
                     Item {
                         anchors.fill: parent
-                        Image { id: pillImgV; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent; sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true }
+                        Image { id: pillImgV; source: Qt.resolvedUrl(!Theme.isLightMode && root.currentIcon.endsWith(".svg") ? root.currentIcon.replace(".svg", "_white.svg") : root.currentIcon); anchors.fill: parent; sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true }
                         MultiEffect { anchors.fill: pillImgV; source: pillImgV; colorization: 1.0; colorizationColor: Theme.widgetIconColor || Theme.primary }
                     }
                 }
@@ -312,9 +312,28 @@ PluginComponent {
         Column {
             id: mainCol; width: parent.width; spacing: Theme.spacingM
             readonly property bool inCC: (parent && parent.inCC) || false
+            property bool isOpen: inCC
+
             padding: inCC ? 16 : 0
             topPadding: 0
             bottomPadding: inCC ? 16 : 2
+
+            opacity: isOpen ? 1.0 : 0.0
+            scale: isOpen ? 1.0 : 0.95
+            transform: [
+                Translate {
+                    id: openTranslate
+                    y: isOpen ? 0 : 30
+                    Behavior on y { NumberAnimation { duration: 400; easing.type: Easing.OutQuart } }
+                }
+            ]
+            Component.onCompleted: {
+                if (!inCC) {
+                    isOpen = true;
+                }
+            }
+            Behavior on opacity { NumberAnimation { duration: 250 } }
+            Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutQuart } }
 
                 StyledRect {
                     width: parent.width - (mainCol.inCC ? 32 : 0); anchors.horizontalCenter: parent.horizontalCenter; height: 72
@@ -463,7 +482,7 @@ PluginComponent {
                         Item {
                             width: 24; height: 24
                             Image {
-                                id: headerImg; source: Qt.resolvedUrl(root.currentIcon); anchors.fill: parent
+                                id: headerImg; source: Qt.resolvedUrl(!Theme.isLightMode && root.currentIcon.endsWith(".svg") ? root.currentIcon.replace(".svg", "_white.svg") : root.currentIcon); anchors.fill: parent
                                 sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true
                             }
                             MultiEffect {
@@ -659,40 +678,73 @@ PluginComponent {
 
                                      RowLayout {
                                          anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: Theme.spacingS
-                                         Loader {
+                                         Item {
                                              Layout.preferredWidth: 18
                                              Layout.preferredHeight: 18
-                                             sourceComponent: modelData.icon.includes("/") ? customIconComp : standardIconComp
-                                             
-                                             Component {
-                                                 id: standardIconComp
-                                                 DankIcon { 
-                                                     name: modelData.icon; size: 18
-                                                     color: isActive ? Theme.primary : Theme.surfaceVariantText
-                                                     anchors.centerIn: parent
-                                                     Behavior on color { ColorAnimation { duration: 200 } }
+                                             Layout.alignment: Qt.AlignVCenter
+
+                                             transform: [
+                                                 Rotation {
+                                                     id: presetIconRot
+                                                     origin.x: 9
+                                                     origin.y: 9
+                                                     angle: 0
+                                                 },
+                                                 Scale {
+                                                     origin.x: 9
+                                                     origin.y: 9
+                                                     xScale: hovered ? 1.1 : 1.0
+                                                     yScale: xScale
+                                                     Behavior on xScale { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                                                  }
+                                             ]
+
+                                             SequentialAnimation {
+                                                 running: hovered
+                                                 loops: Animation.Infinite
+                                                 PauseAnimation { duration: 1500 }
+                                                 NumberAnimation { target: presetIconRot; property: "angle"; to: -15; duration: 80; easing.type: Easing.InOutQuad }
+                                                 NumberAnimation { target: presetIconRot; property: "angle"; to: 15; duration: 80; easing.type: Easing.InOutQuad }
+                                                 NumberAnimation { target: presetIconRot; property: "angle"; to: -10; duration: 80; easing.type: Easing.InOutQuad }
+                                                 NumberAnimation { target: presetIconRot; property: "angle"; to: 10; duration: 80; easing.type: Easing.InOutQuad }
+                                                 NumberAnimation { target: presetIconRot; property: "angle"; to: 0; duration: 80; easing.type: Easing.InOutQuad }
+                                                 onRunningChanged: { if (!running) presetIconRot.angle = 0; }
                                              }
 
-                                             Component {
-                                                 id: customIconComp
-                                                 Item {
-                                                     width: 18; height: 18
-                                                     Image {
-                                                         id: imgIcon
-                                                         source: Qt.resolvedUrl(modelData.icon)
-                                                         anchors.fill: parent
-                                                         sourceSize.width: 18
-                                                         sourceSize.height: 18
-                                                         visible: false
-                                                         smooth: true
+                                             Loader {
+                                                 anchors.fill: parent
+                                                 sourceComponent: modelData.icon.includes("/") ? customIconComp : standardIconComp
+                                                 
+                                                 Component {
+                                                     id: standardIconComp
+                                                     DankIcon { 
+                                                         name: modelData.icon; size: 18
+                                                         color: isActive ? Theme.primary : (hovered ? Theme.primary : Theme.surfaceVariantText)
+                                                         anchors.centerIn: parent
+                                                         Behavior on color { ColorAnimation { duration: 200 } }
                                                      }
-                                                     MultiEffect {
-                                                         anchors.fill: imgIcon
-                                                         source: imgIcon
-                                                         colorization: 1.0
-                                                         colorizationColor: isActive ? Theme.primary : Theme.surfaceVariantText
-                                                         Behavior on colorizationColor { ColorAnimation { duration: 200 } }
+                                                 }
+
+                                                 Component {
+                                                     id: customIconComp
+                                                     Item {
+                                                         width: 18; height: 18
+                                                         Image {
+                                                             id: imgIcon
+                                                             source: Qt.resolvedUrl(!Theme.isLightMode && modelData.icon.endsWith(".svg") ? modelData.icon.replace(".svg", "_white.svg") : modelData.icon)
+                                                             anchors.fill: parent
+                                                             sourceSize.width: 18
+                                                             sourceSize.height: 18
+                                                             visible: false
+                                                             smooth: true
+                                                         }
+                                                         MultiEffect {
+                                                             anchors.fill: imgIcon
+                                                             source: imgIcon
+                                                             colorization: 1.0
+                                                             colorizationColor: isActive ? Theme.primary : (hovered ? Theme.primary : Theme.surfaceVariantText)
+                                                             Behavior on colorizationColor { ColorAnimation { duration: 200 } }
+                                                         }
                                                      }
                                                  }
                                              }
