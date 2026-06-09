@@ -167,9 +167,9 @@ PluginComponent {
         let cmd = "";
         if (cleanIps === "") {
             // Reset to DHCP
-            cmd = `nmcli con mod "${root.activeConnection}" ipv4.dns "" ipv4.ignore-auto-dns no && nmcli con up "${root.activeConnection}"`;
+            cmd = `nmcli con mod "${root.activeConnection}" ipv4.dns "" ipv4.ignore-auto-dns no && nmcli con up "${root.activeConnection}" && echo "done"`;
         } else {
-            cmd = `nmcli con mod "${root.activeConnection}" ipv4.dns "${cleanIps}" ipv4.ignore-auto-dns yes && nmcli con up "${root.activeConnection}"`;
+            cmd = `nmcli con mod "${root.activeConnection}" ipv4.dns "${cleanIps}" ipv4.ignore-auto-dns yes && nmcli con up "${root.activeConnection}" && echo "done"`;
         }
         setter.command = ["bash", "-c", cmd];
         setter.running = true;
