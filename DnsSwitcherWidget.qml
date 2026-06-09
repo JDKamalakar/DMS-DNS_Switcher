@@ -118,7 +118,7 @@ PluginComponent {
     Process {
         id: dnsScanner
         running: false
-        command: ["bash", "-c", `dns="$(resolvectl status | grep 'DNS Servers' | sed 's/.*DNS Servers:[ \t]*//')"; man="$(nmcli -g ipv4.ignore-auto-dns connection show "${root.activeConnection}")"; echo "$dns|$man"`]
+        command: ["bash", "-c", `dns="$(resolvectl status 2>/dev/null | grep 'DNS Servers' | sed 's/.*DNS Servers:[ \t]*//')"; [ -z "$dns" ] && dns="$(nmcli -g ipv4.dns connection show "${root.activeConnection}" 2>/dev/null)"; man="$(nmcli -g ipv4.ignore-auto-dns connection show "${root.activeConnection}" 2>/dev/null)"; echo "$dns|$man"`]
         stdout: StdioCollector {
             onStreamFinished: {
                 let parts = text.trim().split('|');
@@ -167,9 +167,9 @@ PluginComponent {
         let cmd = "";
         if (cleanIps === "") {
             // Reset to DHCP
-            cmd = `nmcli con mod "${root.activeConnection}" ipv4.dns "" ipv4.ignore-auto-dns no && nmcli con up "${root.activeConnection}"`;
+            cmd = `nmcli con mod "${root.activeConnection}" ipv4.dns "" ipv4.ignore-auto-dns no && nmcli con up "${root.activeConnection}" && echo "done"`;
         } else {
-            cmd = `nmcli con mod "${root.activeConnection}" ipv4.dns "${cleanIps}" ipv4.ignore-auto-dns yes && nmcli con up "${root.activeConnection}"`;
+            cmd = `nmcli con mod "${root.activeConnection}" ipv4.dns "${cleanIps}" ipv4.ignore-auto-dns yes && nmcli con up "${root.activeConnection}" && echo "done"`;
         }
         setter.command = ["bash", "-c", cmd];
         setter.running = true;
