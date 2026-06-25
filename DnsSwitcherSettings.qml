@@ -46,6 +46,58 @@ PluginSettings {
 
         Component.onCompleted: loadAll()
 
+        // --- General Settings Section ---
+        Rectangle {
+            width: parent.width
+            height: generalCol.implicitHeight + Theme.spacingM * 2
+            color: Theme.surfaceContainer
+            radius: Theme.cornerRadius
+            border.color: Theme.outline
+            border.width: 1
+            opacity: 0.8
+
+            Column {
+                id: generalCol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: Theme.spacingM
+                spacing: Theme.spacingM
+
+                RowLayout {
+                    width: parent.width
+                    spacing: Theme.spacingM
+                    
+                    DankIcon { 
+                        name: "public"
+                        size: 22
+                        opacity: 0.8
+                        Layout.alignment: Qt.AlignVCenter
+                    }
+                    
+                    Column {
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignVCenter
+                        spacing: Theme.spacingXS
+                        StyledText { text: "Show IP Address"; font.weight: Font.Medium; color: Theme.surfaceText }
+                        StyledText { text: "Display your public IP address and location in the widget."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
+                    }
+                    
+                    DankToggle {
+                        id: showIpSwitch
+                        Layout.alignment: Qt.AlignVCenter
+                        Component.onCompleted: {
+                            checked = mainSettingsCol.loadValue("showIpAddress", "false") === "true";
+                        }
+                        onToggled: function(newChecked) {
+                            checked = newChecked;
+                            mainSettingsCol.saveValue("showIpAddress", newChecked ? "true" : "false");
+                        }
+                    }
+                }
+            }
+        }
+
         // --- Provider Visibility Section ---
         Rectangle {
             width: parent.width
@@ -58,7 +110,9 @@ PluginSettings {
 
             Column {
                 id: visibilityCol
-                anchors.fill: parent
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
                 anchors.margins: Theme.spacingM
                 spacing: Theme.spacingM
 
@@ -67,7 +121,7 @@ PluginSettings {
                     spacing: Theme.spacingM
                     DankIcon { name: "visibility"; size: 22; anchors.verticalCenter: parent.verticalCenter; opacity: 0.8 }
                     Column {
-                        width: parent.width - 22 - Theme.spacingM
+                        width: Math.max(0, parent.width - 22 - Theme.spacingM)
                         spacing: Theme.spacingXS
                         StyledText { text: "Provider Visibility"; font.weight: Font.Medium; color: Theme.surfaceText }
                         StyledText { text: "Choose which DNS providers appear in the widget."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
@@ -81,7 +135,7 @@ PluginSettings {
                     Repeater {
                         model: ["System Default", "Google", "Cloudflare", "OpenDNS", "AdGuard", "Quad9"]
                         delegate: Rectangle {
-                            width: (visibilityCol.width - Theme.spacingS) / 2 - 1
+                            width: Math.max(0, (visibilityCol.width - Theme.spacingS) / 2 - 1)
                             height: 40
                             radius: 8
                             color: isHidden ? Theme.surfaceContainerHighest : Theme.primaryContainer
@@ -92,6 +146,10 @@ PluginSettings {
 
                             RowLayout {
                                 anchors.fill: parent; anchors.margins: Theme.spacingS
+                                DankIcon { 
+                                    name: modelData === "System Default" ? "dns" : "language"
+                                    size: 16; color: isHidden ? Theme.surfaceVariantText : Theme.primary 
+                                }
                                 StyledText { text: modelData; Layout.fillWidth: true; color: isHidden ? Theme.surfaceVariantText : Theme.primary; font.pixelSize: Theme.fontSizeSmall }
                                 DankIcon { 
                                     name: isHidden ? "visibility_off" : "visibility"
@@ -99,7 +157,15 @@ PluginSettings {
                                 }
                             }
 
+                            Rectangle {
+                                anchors.fill: parent; radius: 8
+                                color: Theme.surfaceText
+                                opacity: maVisibility.containsMouse ? 0.05 : 0
+                                Behavior on opacity { NumberAnimation { duration: 150 } }
+                            }
+
                             MouseArea {
+                                id: maVisibility
                                 anchors.fill: parent; hoverEnabled: true
                                 onClicked: {
                                     let list = Array.from(mainSettingsCol.hiddenProviders);
@@ -109,7 +175,10 @@ PluginSettings {
                                     mainSettingsCol.hiddenProviders = list;
                                     mainSettingsCol.saveHidden();
                                 }
+                                onPressed: (m) => ripVisibility.trigger(m.x, m.y)
                             }
+                            
+                            DankRipple { id: ripVisibility; anchors.fill: parent; cornerRadius: 8; rippleColor: Theme.surfaceText }
                         }
                     }
                 }
@@ -137,7 +206,7 @@ PluginSettings {
                     spacing: Theme.spacingM
                     DankIcon { name: "add_circle"; size: 22; anchors.verticalCenter: parent.verticalCenter; opacity: 0.8 }
                     Column {
-                        width: parent.width - 22 - Theme.spacingM
+                        width: Math.max(0, parent.width - 22 - Theme.spacingM)
                         spacing: Theme.spacingXS
                         StyledText { text: "Custom Presets"; font.weight: Font.Medium; color: Theme.surfaceText }
                         StyledText { text: "Add your own DNS servers to the quick list."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
@@ -163,7 +232,7 @@ PluginSettings {
                             width: 32; height: 32; radius: 8
                             color: (newName.text && newIp.text) ? Theme.primary : Theme.surfaceContainerHighest
                             opacity: (newName.text && newIp.text) ? 1.0 : 0.5
-                            DankIcon { name: "add"; size: 18; color: "white"; anchors.centerIn: parent }
+                            DankIcon { name: "add"; size: 18; color: Theme.surface; anchors.centerIn: parent }
                             MouseArea {
                                 anchors.fill: parent
                                 enabled: newName.text && newIp.text
@@ -203,20 +272,32 @@ PluginSettings {
                                     StyledText { text: modelData.name; font.weight: Font.Bold; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceText }
                                     StyledText { text: modelData.ip; font.pixelSize: Theme.fontSizeSmall - 2; color: Theme.surfaceVariantText; elide: Text.ElideRight }
                                 }
-                                    DankIcon { 
-                                        name: "delete"; size: 18; color: Theme.error
-                                        Layout.preferredWidth: 18
-                                        Layout.preferredHeight: 18
+                                    Item { 
+                                        Layout.preferredWidth: 24
+                                        Layout.preferredHeight: 24
+                                        
+                                        Rectangle {
+                                            anchors.fill: parent; radius: 12
+                                            color: Theme.error; opacity: maDelete.containsMouse ? 0.15 : 0
+                                            Behavior on opacity { NumberAnimation { duration: 150 } }
+                                        }
+
+                                        DankIcon { name: "delete"; size: 16; color: Theme.error; anchors.centerIn: parent }
+
                                         MouseArea {
+                                            id: maDelete
                                             anchors.fill: parent
                                             cursorShape: Qt.PointingHandCursor
+                                            hoverEnabled: true
                                             onClicked: {
                                                 let list = Array.from(mainSettingsCol.customProviders);
                                                 list.splice(index, 1);
                                                 mainSettingsCol.customProviders = list;
                                                 mainSettingsCol.saveCustom();
                                             }
+                                            onPressed: (m) => ripDelete.trigger(m.x, m.y)
                                         }
+                                        DankRipple { id: ripDelete; anchors.fill: parent; cornerRadius: 12; rippleColor: Theme.error }
                                     }
                             }
                         }
