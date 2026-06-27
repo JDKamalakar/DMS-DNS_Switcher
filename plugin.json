@@ -3,7 +3,7 @@
     "name": "DNS Switcher",
     "description": "Switch system DNS providers and monitor network status.",
     "category": "utilities",
-    "version": "1.0.6",
+    "version": "1.1.1",
     "author": "JDKamalakar",
     "icon": "dns",
     "type": "widget",
