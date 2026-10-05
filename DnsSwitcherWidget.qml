@@ -54,13 +54,19 @@ PluginComponent {
     property bool isManualDns: false
     property string statusLabel: activeConnection ? (isManualDns ? "Manual DNS active" : "Using DHCP") : "No active connection"
     property string providerName: "Unknown"
-    property bool loading: connScanner.running || dnsScanner.running || setter.running
+    property bool _loading: setter.running
+    property bool _scanning: connScanner.running || dnsScanner.running
 
     // --- Settings & Reactivity ---
     property string _hiddenProviders: PluginService.loadPluginData("dnsSwitcher", "hiddenProviders", "[]")
     property string _customProviders: PluginService.loadPluginData("dnsSwitcher", "customProviders", "[]")
     property string _showIpAddressData: PluginService.loadPluginData("dnsSwitcher", "showIpAddress", "false")
     property bool _showIpAddress: _showIpAddressData === "true"
+
+    property string _showCheckAnimData: PluginService.loadPluginData("dnsSwitcher", "showCheckAnim", "false")
+    property bool _showCheckAnim: _showCheckAnimData === "true"
+
+    property bool loading: (_showCheckAnim && _scanning) || _loading
 
     PluginGlobalVar { varName: "hiddenProviders"; onValueChanged: { root._hiddenProviders = value; root.updateProviders() } }
     PluginGlobalVar { varName: "customProviders"; onValueChanged: { root._customProviders = value; root.updateProviders() } }
