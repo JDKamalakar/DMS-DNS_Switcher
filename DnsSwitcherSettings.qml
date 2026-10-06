@@ -95,6 +95,42 @@ PluginSettings {
                         }
                     }
                 }
+
+                RowLayout {
+                    width: parent.width
+                    spacing: Theme.spacingM
+
+                    DankIcon {
+                        name: "auto_awesome_motion"
+                        size: 22
+                        opacity: 0.8
+                        Layout.alignment: Qt.AlignVCenter
+                    }
+
+                    Column {
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignVCenter
+                        spacing: Theme.spacingXS
+                        StyledText {
+                            text: "Show animation while checking for connection"
+                            font.weight: Font.Medium
+                            color: Theme.surfaceText
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    DankToggle {
+                        id: showCheckAnim
+                        Layout.alignment: Qt.AlignVCenter
+                        Component.onCompleted: {
+                            checked = mainSettingsCol.loadValue("showCheckAnim", "false") === "true";
+                        }
+                        onToggled: function (newChecked) {
+                            checked = newChecked;
+                            mainSettingsCol.saveValue("showCheckAnim", newChecked ? "true" : "false");
+                        }
+                    }
+                }
             }
         }
 
