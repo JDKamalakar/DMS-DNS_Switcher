@@ -101,9 +101,11 @@ jobs:
 
             // 5. Create tar.gz archive artifact for the plugin
             const archiveName = `${pluginId}-v${currentVersion}.tar.gz`;
+            const tmpArchivePath = `/tmp/${archiveName}`;
             core.info(`Creating release archive ${archiveName}...`);
             try {
-              execSync(`tar --exclude="./.git" --exclude="./.github" -czvf "${archiveName}" .`, { stdio: 'inherit' });
+              execSync(`tar --exclude="./.git" --exclude="./.github" --exclude="*.tar.gz" -czf "${tmpArchivePath}" .`, { stdio: 'inherit' });
+              fs.copyFileSync(tmpArchivePath, archiveName);
             } catch (err) {
               core.setFailed(`Failed to create tar.gz archive: ${err.message}`);
               return;
