@@ -29,8 +29,15 @@ Monitor and switch your system DNS providers – easier than ever on the Dank Ma
 * **Material Aesthetics**: Smooth animations and transitions that feel native to DMS.
 * **Multi-Widget Support**: Compact pills for panels and a full Control Center detail view.
 * **Deep Settings**: Full control over provider visibility and custom configurations.
+* **Public IP & Location Card (Optional)**: Optional public IP and geolocation card powered by the [ipinfo.io](https://ipinfo.io) API.
 
 </div>
+
+## Dependencies
+
+* `NetworkManager` (`nmcli`) - Required for DNS and connection control.
+* `curl` - Required when the optional public IP display feature is enabled.
+* `systemd-resolved` (`resolvectl`) - Optional, used for DNS status fallback where supported.
 
 ## Interface
 

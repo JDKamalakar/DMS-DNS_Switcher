@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Common
 import qs.Widgets
+import qs.DCommon.Widgets
 import qs.Modules.Plugins
 import qs.Services
 import QtQuick.Controls
@@ -50,12 +51,58 @@ PluginComponent {
 
     // --- State Management ---
     property string activeConnection: ""
+    property string activeConnectionUuid: ""
     property string currentDns: ""
     property bool isManualDns: false
     property string statusLabel: activeConnection ? (isManualDns ? "Manual DNS active" : "Using DHCP") : "No active connection"
     property string providerName: "Unknown"
-    property bool _loading: setter.running
+    property bool _setting: setter.running || reactivator.running || settingDns
+    property bool settingDns: false
     property bool _scanning: connScanner.running || dnsScanner.running
+    property bool isManualRefresh: false
+    property bool ipLoading: ipScanner.running
+
+    Connections {
+        target: NetworkService
+        function onPrimaryDeviceChanged() { root.refresh(false); }
+        function onWifiConnectedChanged() { root.refresh(false); }
+        function onEthernetConnectedChanged() { root.refresh(false); }
+    }
+
+    onPopoutOpenChanged: {
+        if (root.popoutOpen) {
+            root.refresh(false);
+        }
+    }
+
+    function isValidDnsInput(input) {
+        if (!input || input.trim() === "") return true;
+        let parts = input.trim().split(/[\s,]+/);
+        let ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        let ipv6Regex = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::$|^::1$|^([0-9a-fA-F]{1,4}:){1,7}:$|^:([0-9a-fA-F]{1,4}:){1,7}$|^([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$/;
+        for (let i = 0; i < parts.length; i++) {
+            let ip = parts[i].trim();
+            if (ip && !ipv4Regex.test(ip) && !ipv6Regex.test(ip)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function cleanDnsInput(input) {
+        if (!input) return "";
+        let parts = input.trim().split(/[\s,]+/);
+        let valid = [];
+        let ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        let ipv6Regex = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::$|^::1$|^([0-9a-fA-F]{1,4}:){1,7}:$|^:([0-9a-fA-F]{1,4}:){1,7}$|^([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$/;
+        for (let i = 0; i < parts.length; i++) {
+            let ip = parts[i].trim();
+            if (ip && (ipv4Regex.test(ip) || ipv6Regex.test(ip))) {
+                valid.push(ip);
+            }
+        }
+        return valid.join(" ");
+    }
 
     // --- Settings & Reactivity ---
     property string _hiddenProviders: PluginService.loadPluginData("dnsSwitcher", "hiddenProviders", "[]")
@@ -66,7 +113,7 @@ PluginComponent {
     property string _showCheckAnimData: PluginService.loadPluginData("dnsSwitcher", "showCheckAnim", "false")
     property bool _showCheckAnim: _showCheckAnimData === "true"
 
-    property bool loading: (_showCheckAnim && _scanning) || _loading
+    property bool loading: (_scanning && (isManualRefresh || _showCheckAnim || _setting)) || _setting
 
     PluginGlobalVar { varName: "hiddenProviders"; onValueChanged: { root._hiddenProviders = value; root.updateProviders() } }
     PluginGlobalVar { varName: "customProviders"; onValueChanged: { root._customProviders = value; root.updateProviders() } }
@@ -74,10 +121,16 @@ PluginComponent {
         varName: "showIpAddress"
         onValueChanged: {
             root._showIpAddressData = value;
-            if (root._showIpAddress) {
+            if (root._showIpAddress && (root.popoutOpen || root.ccWidgetExpanded)) {
                 ipScanner.running = false;
                 ipScanner.running = true;
             }
+        }
+    }
+    PluginGlobalVar {
+        varName: "showCheckAnim"
+        onValueChanged: {
+            root._showCheckAnimData = value;
         }
     }
 
@@ -130,7 +183,7 @@ PluginComponent {
     Process {
         id: ipScanner
         running: false
-        command: ["bash", "-c", "curl -s https://ipinfo.io/json"]
+        command: ["curl", "-s", "--max-time", "4", "https://ipinfo.io/json"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -142,7 +195,14 @@ PluginComponent {
                         root.publicLocation = data.region;
                     }
                 } catch(e) {
-                    console.log("Failed to parse IP info");
+                    if (!root.publicIp) root.publicIp = "Unavailable";
+                }
+            }
+        }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                if (!root.publicIp && text.trim() !== "") {
+                    root.publicIp = "Unavailable";
                 }
             }
         }
@@ -150,47 +210,84 @@ PluginComponent {
 
     Process {
         id: connScanner
-        command: ["bash", "-c", "nmcli -t -f NAME connection show --active | head -n 1"]
+        command: ["nmcli", "-t", "-f", "UUID,NAME", "connection", "show", "--active"]
         stdout: StdioCollector {
             onStreamFinished: {
-                root.activeConnection = text.trim();
-                if (root.activeConnection) {
+                let lines = text.trim().split("
+");
+                let selectedUuid = "";
+                let selectedName = "";
+
+                for (let i = 0; i < lines.length; i++) {
+                    let line = lines[i].trim();
+                    if (!line) continue;
+                    let parts = line.split(":");
+                    let uuid = parts[0] || "";
+                    let name = parts.slice(1).join(":") || "";
+                    let nameLower = name.toLowerCase();
+
+                    // Prefer actual network connections over virtual loopback/docker/veth
+                    if (!selectedUuid && uuid) {
+                        selectedUuid = uuid;
+                        selectedName = name;
+                    }
+                    if (nameLower !== "lo" && nameLower !== "loopback" && !nameLower.startsWith("docker") && !nameLower.startsWith("br-") && !nameLower.startsWith("veth")) {
+                        selectedUuid = uuid;
+                        selectedName = name;
+                        break;
+                    }
+                }
+
+                root.activeConnectionUuid = selectedUuid;
+                root.activeConnection = selectedName;
+
+                if (root.activeConnectionUuid) {
                     dnsScanner.running = false;
                     dnsScanner.running = true;
+                } else {
+                    root.isManualRefresh = false;
+                    root.settingDns = false;
+                }
+            }
+        }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                if (!root.activeConnectionUuid) {
+                    root.isManualRefresh = false;
+                    root.settingDns = false;
                 }
             }
         }
     }
-
     Process {
         id: dnsScanner
         running: false
-        command: ["bash", "-c", `dns="$(resolvectl status 2>/dev/null | grep 'DNS Servers' | sed 's/.*DNS Servers:[ \t]*//')"; [ -z "$dns" ] && dns="$(nmcli -g ipv4.dns connection show "${root.activeConnection}" 2>/dev/null)"; man="$(nmcli -g ipv4.ignore-auto-dns connection show "${root.activeConnection}" 2>/dev/null)"; echo "$dns|$man"`]
+        command: ["nmcli", "-g", "ipv4.dns,ipv4.ignore-auto-dns", "connection", "show", "uuid", root.activeConnectionUuid]
         stdout: StdioCollector {
             onStreamFinished: {
-                let parts = text.trim().split('|');
-                let dnsLine = parts[0] ? parts[0].trim().replace(/\r?\n/g, " ") : "";
-                let manual = parts[1] ? parts[1].trim() === "yes" : false;
+                let lines = text.trim().split("\n");
+                let dnsLine = lines[0] ? lines[0].trim().replace(/[\r\n]+/g, " ") : "";
+                let manual = lines[1] ? lines[1].trim().toLowerCase() === "yes" : false;
                 
                 root.currentDns = dnsLine;
                 root.isManualDns = manual;
                 root.providerName = root.isManualDns ? root.getProvider(root.currentDns) : "System Default";
+                root.isManualRefresh = false;
+                root.settingDns = false;
             }
         }
     }
 
-    function refresh() {
+    function refresh(isManual) {
+        if (isManual === true) {
+            root.isManualRefresh = true;
+        }
         connScanner.running = false;
         connScanner.running = true;
-        if (root._showIpAddress) {
+        if (root._showIpAddress && (root.popoutOpen || root.ccWidgetExpanded)) {
             ipScanner.running = false;
             ipScanner.running = true;
         }
-    }
-
-    Timer {
-        interval: 10000; running: true; repeat: true; triggeredOnStart: true
-        onTriggered: root.refresh()
     }
 
     // --- Setter ---
@@ -200,29 +297,59 @@ PluginComponent {
         stdout: StdioCollector {
             onStreamFinished: {
                 console.log("DNS set successfully.");
-                root.refresh();
+                if (root.activeConnectionUuid) {
+                    reactivator.running = false;
+                    reactivator.command = ["nmcli", "connection", "up", "uuid", root.activeConnectionUuid];
+                    reactivator.running = true;
+                } else {
+                    root.refresh();
+                }
             }
         }
         stderr: StdioCollector {
             onStreamFinished: {
                 if (text.trim() !== "") {
                     console.log("DNS Setter Error: " + text.trim());
+                    root.settingDns = false;
+                    root.refresh();
                 }
             }
         }
     }
 
+    Process {
+        id: reactivator
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.refresh();
+            }
+        }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                root.refresh();
+            }
+        }
+    }
+
     function setDns(ips) {
+        if (!root.activeConnectionUuid) {
+            console.log("No active connection UUID to set DNS.");
+            return;
+        }
+        if (!isValidDnsInput(ips)) {
+            console.log("Invalid DNS IP format: " + ips);
+            return;
+        }
+        root.settingDns = true;
         setter.running = false;
-        let cleanIps = ips.replace(/,\s*/g, " ");
-        let cmd = "";
+        let cleanIps = cleanDnsInput(ips);
         if (cleanIps === "") {
             // Reset to DHCP
-            cmd = `nmcli con mod "${root.activeConnection}" ipv4.dns "" ipv4.ignore-auto-dns no && nmcli con up "${root.activeConnection}" && echo "done"`;
+            setter.command = ["nmcli", "connection", "modify", "uuid", root.activeConnectionUuid, "ipv4.dns", "", "ipv4.ignore-auto-dns", "no"];
         } else {
-            cmd = `nmcli con mod "${root.activeConnection}" ipv4.dns "${cleanIps}" ipv4.ignore-auto-dns yes && nmcli con up "${root.activeConnection}" && echo "done"`;
+            setter.command = ["nmcli", "connection", "modify", "uuid", root.activeConnectionUuid, "ipv4.dns", cleanIps, "ipv4.ignore-auto-dns", "yes"];
         }
-        setter.command = ["bash", "-c", cmd];
         setter.running = true;
     }
 
@@ -337,10 +464,11 @@ PluginComponent {
 
     Component {
         id: refreshingIconComp
-        DankIcon {
-            name: "cached"; size: parent.width; color: Theme.widgetIconColor || Theme.primary
+        DLoadingIndicator {
+            size: parent.width
+            color: Theme.widgetIconColor || Theme.primary
             anchors.centerIn: parent
-            RotationAnimation on rotation { from: 0; to: 360; duration: 1000; loops: Animation.Infinite }
+            running: true
         }
     }
 
@@ -358,577 +486,11 @@ PluginComponent {
             detailsText: ""
             showCloseButton: false
             
-        Column {
-            id: mainCol; width: parent.width; spacing: Theme.spacingM
-            readonly property bool inCC: false
-
-            padding: inCC ? 16 : 0
-            topPadding: 0
-            bottomPadding: inCC ? 16 : 2
-
-                StyledRect {
-                    width: Math.max(0, parent.width - (mainCol.inCC ? 32 : 0)); anchors.horizontalCenter: parent.horizontalCenter; height: 72
-                    radius: Theme.cornerRadius
-                    color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
-                    border.width: 1
-                    border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
-
-                    RowLayout {
-                        anchors.fill: parent; anchors.margins: Theme.spacingM; spacing: Theme.spacingM
-                        Rectangle {
-                            width: 42; height: 42; radius: 21; color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.2)
-                            Item {
-                                width: 24; height: 24
-                                anchors.centerIn: parent
-                                Loader {
-                                    id: headerIconLoader
-                                    anchors.fill: parent
-                                    asynchronous: true
-                                    sourceComponent: root.loading ? refreshingIconCompHeader : (root.currentIcon.includes("/") ? customHeaderIcon : standardHeaderIcon)
-                                    
-                                    readonly property string _trigger: root.loading ? "loading" : root.currentIcon
-                                    on_TriggerChanged: iconAnim.restart()
-                                    
-                                    transform: Translate { id: iconTransH }
-                                    SequentialAnimation {
-                                        id: iconAnim
-                                        ParallelAnimation {
-                                            NumberAnimation { target: headerIconLoader; property: "opacity"; to: 0; duration: 150; easing.type: Easing.OutQuad }
-                                            NumberAnimation { target: iconTransH; property: "y"; to: 5; duration: 150; easing.type: Easing.OutQuad }
-                                        }
-                                        PropertyAction { target: iconTransH; property: "y"; value: -5 }
-                                        ParallelAnimation {
-                                            NumberAnimation { target: headerIconLoader; property: "opacity"; to: 1; duration: 150; easing.type: Easing.InQuad }
-                                            NumberAnimation { target: iconTransH; property: "y"; to: 0; duration: 150; easing.type: Easing.InQuad }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        Column {
-                            Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 0
-                            StyledText { 
-                                id: connectionNameText
-                                Layout.fillWidth: true
-                                text: root.activeConnection || "No Connection"
-                                font.bold: true; font.pixelSize: Theme.fontSizeLarge; color: Theme.surfaceText 
-                                elide: Text.ElideRight
-                                verticalAlignment: Text.AlignVCenter
-                                
-                                onTextChanged: connNameAnim.restart()
-                                transform: Translate { id: connTrans }
-                                SequentialAnimation {
-                                    id: connNameAnim
-                                    ParallelAnimation {
-                                        NumberAnimation { target: connectionNameText; property: "opacity"; to: 0; duration: 150; easing.type: Easing.OutQuad }
-                                        NumberAnimation { target: connTrans; property: "y"; to: 5; duration: 150; easing.type: Easing.OutQuad }
-                                    }
-                                    PropertyAction { target: connTrans; property: "y"; value: -5 }
-                                    ParallelAnimation {
-                                        NumberAnimation { target: connectionNameText; property: "opacity"; to: 1; duration: 150; easing.type: Easing.InQuad }
-                                        NumberAnimation { target: connTrans; property: "y"; to: 0; duration: 150; easing.type: Easing.InQuad }
-                                    }
-                                }
-                            }
-                            StyledText { 
-                                id: statusLabelText
-                                Layout.fillWidth: true
-                                text: root.statusLabel
-                                font.pixelSize: Theme.fontSizeSmall - 1
-                                color: Theme.primary
-                                font.family: "Monospace"
-                                opacity: 0.8
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                        }
-
-                        Item {
-                            width: 38
-                            height: 38
-                            Layout.alignment: Qt.AlignVCenter
-                            scale: refreshArea.pressed ? 0.9 : (refreshArea.containsMouse ? 1.1 : 1.0)
-                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
-
-                            MouseArea {
-                                id: refreshArea
-                                anchors.fill: parent
-                                hoverEnabled: !root.loading
-                                enabled: !root.loading
-                                cursorShape: root.loading ? Qt.ArrowCursor : Qt.PointingHandCursor
-                                onPressed: mouse => refreshRipple.trigger(mouse.x, mouse.y)
-                                onClicked: {
-                                    root.refresh()
-                                }
-                            }
-
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: Theme.cornerRadius
-                                color: refreshArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15) : Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.4)
-                                border.width: 1
-                                border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, refreshArea.containsMouse ? 0.3 : 0.15)
-                                Behavior on color { ColorAnimation { duration: 150 } }
-                                Behavior on border.color { ColorAnimation { duration: 150 } }
-                            }
-
-                            DankIcon {
-                                id: refreshIcon
-                                name: root.loading ? "cached" : "refresh"
-                                size: 20
-                                color: Theme.primary
-                                anchors.centerIn: parent
-
-                                SequentialAnimation {
-                                    id: hoverSpinAnim
-                                    running: refreshArea.containsMouse && !root.loading
-                                    onStopped: refreshIcon.rotation = 0
-                                    NumberAnimation { target: refreshIcon; property: "rotation"; from: 0; to: 45; duration: 200; easing.type: Easing.OutQuad }
-                                    NumberAnimation { target: refreshIcon; property: "rotation"; from: 45; to: -45; duration: 400; easing.type: Easing.InOutQuad }
-                                    NumberAnimation { target: refreshIcon; property: "rotation"; from: -45; to: 0; duration: 200; easing.type: Easing.InQuad }
-                                }
-
-                                RotationAnimation on rotation {
-                                    from: 0
-                                    to: 360
-                                    duration: 1000
-                                    loops: Animation.Infinite; running: root.loading
-                                }
-                            }
-
-                            DankRipple {
-                                id: refreshRipple
-                                rippleColor: Theme.surfaceText
-                                cornerRadius: Theme.cornerRadius
-                                anchors.fill: parent
-                            }
-                        }
-                    }
-
-                    Component {
-                        id: standardHeaderIcon
-                        DankIcon { name: root.currentIcon; size: 24; color: Theme.primary; anchors.centerIn: parent }
-                    }
-                    Component {
-                        id: customHeaderIcon
-                        Item {
-                            width: 24; height: 24
-                            Image {
-                                id: headerImg; source: Qt.resolvedUrl(!Theme.isLightMode && root.currentIcon.endsWith(".svg") ? root.currentIcon.replace(".svg", "_white.svg") : root.currentIcon); anchors.fill: parent
-                                sourceSize.width: 24; sourceSize.height: 24; visible: false; smooth: true
-                            }
-                            MultiEffect {
-                                anchors.fill: headerImg; source: headerImg; colorization: 1.0; colorizationColor: Theme.primary
-                            }
-                        }
-                    }
-                    Component {
-                        id: refreshingIconCompHeader
-                        DankIcon {
-                            name: "cached"; size: 24; color: Theme.primary
-                            anchors.centerIn: parent
-                            RotationAnimation on rotation { from: 0; to: 360; duration: 1000; loops: Animation.Infinite }
-                        }
-                    }
-                }
-
-                StyledRect {
-                    width: Math.max(0, parent.width - (mainCol.inCC ? 32 : 0)); height: 50
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
-                    border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
-                    
-                    RowLayout {
-                        anchors.fill: parent; anchors.margins: Theme.spacingM
-                        DankIcon { name: "settings_ethernet"; size: 16; color: Theme.surfaceText; opacity: 0.7 }
-                        Item {
-                            Layout.fillWidth: true; height: 18
-                            StyledText { 
-                                id: providerNameLabel
-                                width: parent.width
-                                text: "Current DNS: " + root.providerName
-                                font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceText
-                                
-                                onTextChanged: providerNameAnim.restart()
-                                transform: Translate { id: provNameTrans }
-                                SequentialAnimation {
-                                    id: providerNameAnim
-                                    ParallelAnimation {
-                                        NumberAnimation { target: providerNameLabel; property: "opacity"; to: 0; duration: 150; easing.type: Easing.OutQuad }
-                                        NumberAnimation { target: provNameTrans; property: "y"; to: 5; duration: 150; easing.type: Easing.OutQuad }
-                                    }
-                                    PropertyAction { target: provNameTrans; property: "y"; value: -5 }
-                                    ParallelAnimation {
-                                        NumberAnimation { target: providerNameLabel; property: "opacity"; to: 1; duration: 150; easing.type: Easing.InQuad }
-                                        NumberAnimation { target: provNameTrans; property: "y"; to: 0; duration: 150; easing.type: Easing.InQuad }
-                                    }
-                                }
-                            }
-                        }
-                        Item {
-                            width: 100; height: 18
-                            StyledText {
-                                id: providerIpLabel
-                                width: parent.width
-                                text: root.currentDns ? root.currentDns.split(/[\s,]+/)[0] : "192.168.1.1"
-                                font.pixelSize: Theme.fontSizeSmall - 2; font.family: "Monospace"; color: Theme.primary; opacity: 0.6
-                                horizontalAlignment: Text.AlignRight
-                                
-                                onTextChanged: providerIpAnim.restart()
-                                transform: Translate { id: provIpTrans }
-                                SequentialAnimation {
-                                    id: providerIpAnim
-                                    ParallelAnimation {
-                                        NumberAnimation { target: providerIpLabel; property: "opacity"; to: 0; duration: 150; easing.type: Easing.OutQuad }
-                                        NumberAnimation { target: provIpTrans; property: "y"; to: 5; duration: 150; easing.type: Easing.OutQuad }
-                                    }
-                                    PropertyAction { target: provIpTrans; property: "y"; value: -5 }
-                                    ParallelAnimation {
-                                        NumberAnimation { target: providerIpLabel; property: "opacity"; to: 0.6; duration: 150; easing.type: Easing.InQuad }
-                                        NumberAnimation { target: provIpTrans; property: "y"; to: 0; duration: 150; easing.type: Easing.InQuad }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                StyledRect {
-                    id: ipCont
-                    width: Math.max(0, parent.width - (mainCol.inCC ? 32 : 0))
-                    height: root._showIpAddress ? 50 : 0
-                    opacity: root._showIpAddress ? 1 : 0
-                    Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
-                    Behavior on opacity { NumberAnimation { duration: 150 } }
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
-                    border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
-                    clip: true
-                    visible: height > 0
-                    
-                    RowLayout {
-                        anchors.fill: parent; anchors.margins: Theme.spacingM
-                        visible: ipCont.height > 20
-                        Item {
-                            width: 16; height: 16
-                            Layout.alignment: Qt.AlignVCenter
-                            StyledText {
-                                text: "IP"
-                                font.pixelSize: 12
-                                font.weight: Font.Bold
-                                color: Theme.surfaceText
-                                opacity: 0.7
-                                anchors.centerIn: parent
-                            }
-                        }
-                        Item {
-                            Layout.fillWidth: true; height: 18
-                            StyledText { 
-                                width: parent.width
-                                text: "IP: " + (root.publicIp || "Loading...")
-                                font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceText
-                                elide: Text.ElideRight
-                            }
-                        }
-                        Item {
-                            Layout.preferredWidth: 140; height: 18
-                            StyledText {
-                                width: parent.width
-                                text: root.publicLocation || "..."
-                                font.pixelSize: Theme.fontSizeSmall - 1; color: Theme.primary; opacity: 0.8
-                                horizontalAlignment: Text.AlignRight
-                                elide: Text.ElideRight
-                            }
-                        }
-                    }
-                }
-
-                StyledRect {
-                    id: presetsCont
-                    width: Math.max(0, parent.width - (mainCol.inCC ? 32 : 0))
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    height: presetsContentCol.implicitHeight + Theme.spacingM * 2
-                    Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
-                    radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
-                    border.width: 1
-                    border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
-
-                    Column {
-                        id: presetsContentCol
-                        anchors.fill: parent; anchors.margins: Theme.spacingM
-                        spacing: Theme.spacingS
-
-                        RowLayout {
-                            anchors.left: parent.left; anchors.right: parent.right; anchors.leftMargin: 4; anchors.rightMargin: 4
-                            spacing: Theme.spacingXS; width: parent.width
-                            DankIcon { name: "bolt"; size: 14; color: Theme.surfaceText }
-                            StyledText { text: "Quick Presets"; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold; color: Theme.surfaceText; Layout.fillWidth: true }
-                        }
-
-                        Column {
-                            id: presetsList; width: parent.width; spacing: 4
-                            enabled: !root.loading
-                            opacity: root.loading ? 0.6 : 1.0
-                            Behavior on opacity { NumberAnimation { duration: 150 } }
-                            
-                            Repeater {
-                                model: root.providers
-                                delegate: Item {
-                                     id: presetItem; width: presetsList.width; height: 44
-                                     property bool hovered: maPreset.containsMouse
-                                     property bool isActive: root.providerName === modelData.name
-
-                                     MouseArea {
-                                         id: maPreset; anchors.fill: parent; hoverEnabled: !root.loading
-                                         enabled: !root.loading
-                                         cursorShape: root.loading ? Qt.ArrowCursor : Qt.PointingHandCursor
-                                         onClicked: root.setDns(modelData.ip)
-                                         onPressed: (m) => pRip.trigger(m.x, m.y)
-                                     }
-
-                                     Shape {
-                                         id: presetBg; anchors.fill: parent
-                                         layer.enabled: true
-                                         layer.samples: 4
-                                         property real innerRadius: 6
-                                         property real outerRadius: 12
-                                         property bool isFirst: index === 0
-                                         property bool isLast: index === root.providers.length - 1
-                                         
-                                         property real tlr: isActive ? 21.5 : (isFirst ? outerRadius : innerRadius)
-                                         property real trr: isActive ? 21.5 : (isFirst ? outerRadius : innerRadius)
-                                         property real blr: isActive ? 21.5 : (isLast ? outerRadius : innerRadius)
-                                         property real brr: isActive ? 21.5 : (isLast ? outerRadius : innerRadius)
-
-                                         property real tlrAnim: tlr; Behavior on tlrAnim { NumberAnimation { duration: 600; easing.type: Easing.OutExpo } }
-                                         property real trrAnim: trr; Behavior on trrAnim { NumberAnimation { duration: 600; easing.type: Easing.OutExpo } }
-                                         property real blrAnim: blr; Behavior on blrAnim { NumberAnimation { duration: 600; easing.type: Easing.OutExpo } }
-                                         property real brrAnim: brr; Behavior on brrAnim { NumberAnimation { duration: 600; easing.type: Easing.OutExpo } }
-
-                                         property color paintColor: isActive
-                                             ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.18)
-                                             : hovered
-                                                 ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
-                                                 : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.04)
-                                         Behavior on paintColor { ColorAnimation { duration: 150 } }
-                                         
-                                         property color paintBorder: isActive
-                                             ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.6)
-                                             : hovered
-                                                 ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.4)
-                                                 : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.15)
-                                         Behavior on paintBorder { ColorAnimation { duration: 150 } }
-
-                                         ShapePath {
-                                             fillColor: presetBg.paintColor
-                                             strokeColor: presetBg.paintBorder
-                                             strokeWidth: 1
-
-                                             startX: presetBg.tlrAnim
-                                             startY: 0
-                                             PathLine { x: presetBg.width - presetBg.trrAnim; y: 0 }
-                                             PathArc { x: presetBg.width; y: presetBg.trrAnim; radiusX: presetBg.trrAnim; radiusY: presetBg.trrAnim; direction: PathArc.Clockwise }
-                                             PathLine { x: presetBg.width; y: presetBg.height - presetBg.brrAnim }
-                                             PathArc { x: presetBg.width - presetBg.brrAnim; y: presetBg.height; radiusX: presetBg.brrAnim; radiusY: presetBg.brrAnim; direction: PathArc.Clockwise }
-                                             PathLine { x: presetBg.blrAnim; y: presetBg.height }
-                                             PathArc { x: 0; y: presetBg.height - presetBg.blrAnim; radiusX: presetBg.blrAnim; radiusY: presetBg.blrAnim; direction: PathArc.Clockwise }
-                                             PathLine { x: 0; y: presetBg.tlrAnim }
-                                             PathArc { x: presetBg.tlrAnim; y: 0; radiusX: presetBg.tlrAnim; radiusY: presetBg.tlrAnim; direction: PathArc.Clockwise }
-                                         }
-
-                                         Rectangle { 
-                                             anchors.fill: parent; radius: parent.tlrAnim; color: Theme.surfaceText
-                                             anchors.margins: 0.5
-                                             opacity: hovered ? 0.05 : 0; Behavior on opacity { NumberAnimation { duration: 150 } } 
-                                         }
-                                     }
-
-                                     DankRipple { id: pRip; anchors.fill: parent; cornerRadius: presetBg.tlrAnim; rippleColor: Theme.primary }
-
-                                     RowLayout {
-                                         anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: Theme.spacingS
-                                         Item {
-                                             Layout.preferredWidth: 18
-                                             Layout.preferredHeight: 18
-                                             Layout.alignment: Qt.AlignVCenter
-
-                                             transform: [
-                                                 Rotation {
-                                                     id: presetIconRot
-                                                     origin.x: 9
-                                                     origin.y: 9
-                                                     angle: 0
-                                                 },
-                                                 Scale {
-                                                     origin.x: 9
-                                                     origin.y: 9
-                                                     xScale: hovered ? 1.1 : 1.0
-                                                     yScale: xScale
-                                                     Behavior on xScale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
-                                                 }
-                                             ]
-
-                                             SequentialAnimation {
-                                                 running: hovered
-                                                 loops: Animation.Infinite
-                                                 PauseAnimation { duration: 1500 }
-                                                 NumberAnimation { target: presetIconRot; property: "angle"; to: -15; duration: 80; easing.type: Easing.InOutQuad }
-                                                 NumberAnimation { target: presetIconRot; property: "angle"; to: 15; duration: 80; easing.type: Easing.InOutQuad }
-                                                 NumberAnimation { target: presetIconRot; property: "angle"; to: -10; duration: 80; easing.type: Easing.InOutQuad }
-                                                 NumberAnimation { target: presetIconRot; property: "angle"; to: 10; duration: 80; easing.type: Easing.InOutQuad }
-                                                 NumberAnimation { target: presetIconRot; property: "angle"; to: 0; duration: 80; easing.type: Easing.InOutQuad }
-                                                 onRunningChanged: { if (!running) presetIconRot.angle = 0; }
-                                             }
-
-                                             Loader {
-                                                 anchors.fill: parent
-                                                 asynchronous: true
-                                                 sourceComponent: modelData.icon.includes("/") ? customIconComp : standardIconComp
-                                                 
-                                                 Component {
-                                                     id: standardIconComp
-                                                     DankIcon { 
-                                                         name: modelData.icon; size: 18
-                                                         color: isActive ? Theme.primary : (hovered ? Theme.primary : Theme.surfaceVariantText)
-                                                         anchors.centerIn: parent
-                                                         Behavior on color { ColorAnimation { duration: 150 } }
-                                                     }
-                                                 }
-
-                                                 Component {
-                                                     id: customIconComp
-                                                     Item {
-                                                         width: 18; height: 18
-                                                         Image {
-                                                             id: imgIcon
-                                                             source: Qt.resolvedUrl(!Theme.isLightMode && modelData.icon.endsWith(".svg") ? modelData.icon.replace(".svg", "_white.svg") : modelData.icon)
-                                                             anchors.fill: parent
-                                                             sourceSize.width: 18
-                                                             sourceSize.height: 18
-                                                             visible: false
-                                                             smooth: true
-                                                         }
-                                                         MultiEffect {
-                                                             anchors.fill: imgIcon
-                                                             source: imgIcon
-                                                             colorization: 1.0
-                                                             colorizationColor: isActive ? Theme.primary : (hovered ? Theme.primary : Theme.surfaceVariantText)
-                                                             Behavior on colorizationColor { ColorAnimation { duration: 150 } }
-                                                         }
-                                                     }
-                                                 }
-                                             }
-                                         }
-                                         StyledText { 
-                                             text: modelData.name; font.pixelSize: Theme.fontSizeSmall
-                                             font.weight: isActive ? Font.Bold : Font.Normal 
-                                             color: isActive ? Theme.primary : Theme.surfaceText
-                                             Layout.fillWidth: true 
-                                             Behavior on color { ColorAnimation { duration: 150 } }
-                                         }
-                                         DankIcon { 
-                                             name: "check_circle"; size: 16; color: Theme.primary
-                                             scale: isActive ? 1.0 : 0.0
-                                             opacity: isActive ? 1.0 : 0.0
-                                             Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
-                                             Behavior on opacity { NumberAnimation { duration: 150 } }
-                                         }
-                                     }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                StyledRect {
-                    id: customCont
-                    width: Math.max(0, parent.width - (mainCol.inCC ? 32 : 0)); height: customCol.implicitHeight + Theme.spacingM * 2
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
-                    radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
-                    border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
-
-                    Column {
-                        id: customCol; anchors.fill: parent; anchors.margins: Theme.spacingM; spacing: Theme.spacingM
-                        enabled: !root.loading
-                        opacity: root.loading ? 0.6 : 1.0
-                        Behavior on opacity { NumberAnimation { duration: 150 } }
-                        
-                        RowLayout {
-                            width: parent.width; spacing: Theme.spacingXS
-                            DankIcon { name: "edit"; size: 14; color: Theme.surfaceText }
-                            StyledText { text: "Custom Config"; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold; color: Theme.surfaceText; Layout.fillWidth: true }
-                        }
-
-                        RowLayout {
-                            width: parent.width; spacing: Theme.spacingS
-                            DankTextField {
-                                id: customDnsInput; Layout.fillWidth: true; placeholderText: "8.8.8.8, 1.1.1.1"; font.pixelSize: Theme.fontSizeSmall
-                                text: (root.providerName === "Custom") ? root.currentDns : ""
-                                onAccepted: if (saveBtnContainer.canSave) root.setDns(text.trim())
-                            }
-                            Item {
-                                id: saveBtnContainer
-                                width: 38
-                                height: 38
-                                property bool hasText: customDnsInput.text.trim().length > 0
-                                property bool isDifferent: customDnsInput.text.trim() !== root.currentDns
-                                property bool canSave: hasText && isDifferent
-
-                                scale: canSave ? (saveArea.pressed ? 0.9 : (saveArea.containsMouse ? 1.1 : 1.0)) : 1.0
-                                opacity: canSave ? 1.0 : 0.3
-                                Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
-                                Behavior on opacity { NumberAnimation { duration: 150 } }
-
-                                MouseArea {
-                                    id: saveArea
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    enabled: parent.canSave
-                                    cursorShape: parent.canSave ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                    onEntered: if (parent.canSave) saveHoverAnim.restart()
-                                    onPressed: mouse => saveRipple.trigger(mouse.x, mouse.y)
-                                    onClicked: root.setDns(customDnsInput.text.trim())
-                                }
-
-                                Rectangle {
-                                    anchors.fill: parent
-                                    radius: Theme.cornerRadius
-                                    color: saveArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15) : Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.4)
-                                    border.width: 1
-                                    border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, saveArea.containsMouse ? 0.3 : 0.15)
-                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                    Behavior on border.color { ColorAnimation { duration: 150 } }
-                                }
-
-                                DankIcon {
-                                    id: saveIcon
-                                    name: "done"
-                                    size: 20
-                                    color: Theme.primary
-                                    anchors.centerIn: parent
-                                    
-                                    SequentialAnimation {
-                                        id: saveHoverAnim
-                                        onStopped: saveIcon.rotation = 0
-                                        NumberAnimation { target: saveIcon; property: "rotation"; from: 0; to: 15; duration: 200; easing.type: Easing.OutQuad }
-                                        NumberAnimation { target: saveIcon; property: "rotation"; from: 15; to: -15; duration: 400; easing.type: Easing.InOutQuad }
-                                        NumberAnimation { target: saveIcon; property: "rotation"; from: -15; to: 0; duration: 200; easing.type: Easing.InQuad }
-                                    }
-                                }
-
-                                DankRipple {
-                                    id: saveRipple
-                                    rippleColor: Theme.surfaceText
-                                    cornerRadius: Theme.cornerRadius
-                                    anchors.fill: parent
-                                }
-                            }
-                        }
-
-                    }
-                }
-        }
+            Loader {
+                width: parent.width
+                sourceComponent: dnsWidgetContent
+                readonly property bool inCC: false
+            }
         }
     }
 
@@ -1034,7 +596,7 @@ PluginComponent {
                                 cursorShape: root.loading ? Qt.ArrowCursor : Qt.PointingHandCursor
                                 onPressed: mouse => refreshRipple.trigger(mouse.x, mouse.y)
                                 onClicked: {
-                                    root.refresh()
+                                    root.refresh(true)
                                 }
                             }
 
@@ -1048,12 +610,21 @@ PluginComponent {
                                 Behavior on border.color { ColorAnimation { duration: 150 } }
                             }
 
+                            DLoadingIndicator {
+                                size: 18
+                                color: Theme.primary
+                                anchors.centerIn: parent
+                                visible: root.loading
+                                running: root.loading
+                            }
+
                             DankIcon {
                                 id: refreshIcon
-                                name: root.loading ? "cached" : "refresh"
+                                name: "refresh"
                                 size: 20
                                 color: Theme.primary
                                 anchors.centerIn: parent
+                                visible: !root.loading
 
                                 SequentialAnimation {
                                     id: hoverSpinAnim
@@ -1062,13 +633,6 @@ PluginComponent {
                                     NumberAnimation { target: refreshIcon; property: "rotation"; from: 0; to: 45; duration: 200; easing.type: Easing.OutQuad }
                                     NumberAnimation { target: refreshIcon; property: "rotation"; from: 45; to: -45; duration: 400; easing.type: Easing.InOutQuad }
                                     NumberAnimation { target: refreshIcon; property: "rotation"; from: -45; to: 0; duration: 200; easing.type: Easing.InQuad }
-                                }
-
-                                RotationAnimation on rotation {
-                                    from: 0
-                                    to: 360
-                                    duration: 1000
-                                    loops: Animation.Infinite; running: root.loading
                                 }
                             }
 
@@ -1100,10 +664,11 @@ PluginComponent {
                     }
                     Component {
                         id: refreshingIconCompHeader
-                        DankIcon {
-                            name: "cached"; size: 24; color: Theme.primary
+                        DLoadingIndicator {
+                            size: 24
+                            color: Theme.primary
                             anchors.centerIn: parent
-                            RotationAnimation on rotation { from: 0; to: 360; duration: 1000; loops: Animation.Infinite }
+                            running: true
                         }
                     }
                 }
@@ -1190,7 +755,7 @@ PluginComponent {
                             Layout.alignment: Qt.AlignVCenter
                             StyledText {
                                 text: "IP"
-                                font.pixelSize: 12
+                                font.pixelSize: Theme.fontSizeSmall - 2
                                 font.weight: Font.Bold
                                 color: Theme.surfaceText
                                 opacity: 0.7
@@ -1199,21 +764,32 @@ PluginComponent {
                         }
                         Item {
                             Layout.fillWidth: true; height: 18
-                            StyledText { 
-                                width: parent.width
-                                text: "IP: " + (root.publicIp || "Loading...")
-                                font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceText
-                                elide: Text.ElideRight
+                            RowLayout {
+                                anchors.fill: parent; spacing: Theme.spacingXS
+                                StyledText { 
+                                    text: "IP: " + (root.publicIp ? root.publicIp : "")
+                                    font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceText
+                                    visible: !root.ipLoading && root.publicIp !== ""
+                                    elide: Text.ElideRight
+                                }
+                                DLoadingIndicator {
+                                    size: 14
+                                    color: Theme.primary
+                                    visible: root.ipLoading || root.publicIp === ""
+                                    running: root.ipLoading || root.publicIp === ""
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
                             }
                         }
                         Item {
                             Layout.preferredWidth: 140; height: 18
                             StyledText {
                                 width: parent.width
-                                text: root.publicLocation || "..."
+                                text: root.publicLocation
                                 font.pixelSize: Theme.fontSizeSmall - 1; color: Theme.primary; opacity: 0.8
                                 horizontalAlignment: Text.AlignRight
                                 elide: Text.ElideRight
+                                visible: !root.ipLoading && root.publicLocation !== ""
                             }
                         }
                     }
