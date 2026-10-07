@@ -3,7 +3,7 @@
     "name": "DNS Switcher",
     "description": "Switch system DNS providers and monitor network status.",
     "category": "utilities",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "author": "JDKamalakar",
     "icon": "dns",
     "type": "widget",
@@ -20,7 +20,11 @@
     "distro": [
         "any"
     ],
-    "dependencies": [],
+    "dependencies": [
+        "nmcli",
+        "curl",
+        "resolvectl"
+    ],
     "screenshot": "https://raw.githubusercontent.com/JDKamalakar/DMS-DNS_Switcher/refs/heads/main/assets/POP-Up_UI.png",
     "permissions": [
         "process",
