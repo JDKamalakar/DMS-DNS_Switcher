@@ -14,35 +14,107 @@ PluginSettings {
     readonly property real innerR: 4
 
     function loadValue(key, def) {
-        return PluginService.loadPluginData(root.pluginId, key, def);
+        if (typeof PluginService !== "undefined" && PluginService && PluginService.loadPluginData) {
+            return PluginService.loadPluginData(root.pluginId, key, def);
+        }
+        return def;
     }
 
     function saveValue(key, val) {
-        PluginService.savePluginData(root.pluginId, key, val);
-        PluginService.setGlobalVar(root.pluginId, key, val);
+        if (typeof PluginService !== "undefined" && PluginService && PluginService.savePluginData) {
+            PluginService.savePluginData(root.pluginId, key, val);
+            if (PluginService.setGlobalVar) {
+                PluginService.setGlobalVar(root.pluginId, key, val);
+            }
+        }
     }
 
     // --- State ---
     property var hiddenProviders: []
     property var customProviders: []
+    property int customVersion: 0
+
+    readonly property var customProvidersModel: {
+        void(customVersion);
+        return customProviders || [];
+    }
 
     function loadAll() {
         let hidden = loadValue("hiddenProviders", "[]");
-        try { hiddenProviders = JSON.parse(hidden); } catch(e) { hiddenProviders = []; }
+        try { 
+            let parsedHidden = typeof hidden === "string" ? JSON.parse(hidden) : hidden;
+            hiddenProviders = Array.isArray(parsedHidden) ? parsedHidden : [];
+        } catch(e) { 
+            hiddenProviders = []; 
+        }
         
         let custom = loadValue("customProviders", "[]");
-        try { customProviders = JSON.parse(custom); } catch(e) { customProviders = []; }
+        try { 
+            let parsedCustom = typeof custom === "string" ? JSON.parse(custom) : custom;
+            customProviders = Array.isArray(parsedCustom) ? parsedCustom : [];
+        } catch(e) { 
+            customProviders = []; 
+        }
+        customVersion++;
     }
 
-    function saveHidden() {
-        saveValue("hiddenProviders", JSON.stringify(hiddenProviders));
+    function saveHidden(list) {
+        let val = list !== undefined ? list : hiddenProviders;
+        saveValue("hiddenProviders", JSON.stringify(val));
     }
 
-    function saveCustom() {
-        saveValue("customProviders", JSON.stringify(customProviders));
+    function saveCustom(list) {
+        let val = list !== undefined ? list : customProviders;
+        saveValue("customProviders", JSON.stringify(val));
+        customVersion++;
+    }
+
+    function addCustomProvider(name, ip, icon) {
+        let nameTrimmed = (name || "").trim();
+        let ipTrimmed = (ip || "").trim();
+        if (!nameTrimmed || !ipTrimmed) return false;
+
+        let list = Array.isArray(customProviders) ? customProviders.slice() : [];
+        list.push({
+            name: nameTrimmed,
+            ip: ipTrimmed,
+            icon: (icon || "").trim() || "dns"
+        });
+        customProviders = list;
+        saveCustom(list);
+        return true;
+    }
+
+    function deleteCustomProvider(targetIndex) {
+        if (!Array.isArray(customProviders) || targetIndex < 0 || targetIndex >= customProviders.length) return;
+        let list = customProviders.slice();
+        list.splice(targetIndex, 1);
+        customProviders = list;
+        saveCustom(list);
     }
 
     Component.onCompleted: loadAll()
+
+    onPluginServiceChanged: {
+        if (pluginService) {
+            loadAll();
+        }
+    }
+
+    Connections {
+        target: PluginService
+        ignoreUnknownSignals: true
+        function onPluginDataChanged(pId) {
+            if (pId === root.pluginId) {
+                root.loadAll();
+            }
+        }
+        function onGlobalVarChanged(pId, varName) {
+            if (pId === root.pluginId) {
+                root.loadAll();
+            }
+        }
+    }
 
     Column {
         id: mainSettingsCol
@@ -271,7 +343,17 @@ PluginSettings {
                                 id: providerPill
                                 width: Math.max(0, (visFlow.width - Theme.spacingS) / 2 - 1)
                                 height: 44
-                                radius: 10
+                                
+                                property bool isTopRow: index < 2
+                                property bool isBottomRow: index >= 4
+                                property bool isLeftCol: index % 2 === 0
+                                property bool isRightCol: index % 2 === 1
+
+                                topLeftRadius: (isTopRow && isLeftCol) ? root.outerR : root.innerR
+                                topRightRadius: (isTopRow && isRightCol) ? root.outerR : root.innerR
+                                bottomLeftRadius: (isBottomRow && isLeftCol) ? root.outerR : root.innerR
+                                bottomRightRadius: (isBottomRow && isRightCol) ? root.outerR : root.innerR
+
                                 color: isHidden ? Qt.rgba(Theme.surfaceContainerHighest.r, Theme.surfaceContainerHighest.g, Theme.surfaceContainerHighest.b, 0.4) : Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12)
                                 border.color: isHidden ? Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.3) : Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.45)
                                 border.width: 1
@@ -351,12 +433,12 @@ PluginSettings {
                                         if (idx === -1) list.push(modelData);
                                         else list.splice(idx, 1);
                                         root.hiddenProviders = list;
-                                        root.saveHidden();
+                                        root.saveHidden(list);
                                     }
                                     onPressed: (m) => ripVisibility.trigger(m.x, m.y)
                                 }
                                 
-                                DankRipple { id: ripVisibility; anchors.fill: parent; cornerRadius: 10; rippleColor: Theme.primary }
+                                DankRipple { id: ripVisibility; anchors.fill: parent; cornerRadius: root.innerR; rippleColor: Theme.primary }
                             }
                         }
                     }
@@ -428,11 +510,32 @@ PluginSettings {
                             anchors.topMargin: Theme.spacingM
                             spacing: Theme.spacingS
 
+                            function handleAddPreset() {
+                                let nameVal = newName.text;
+                                let ipVal = newIp.text;
+                                let iconVal = newIcon.text;
+                                if (root.addCustomProvider(nameVal, ipVal, iconVal)) {
+                                    newName.text = "";
+                                    newIp.text = "";
+                                    newIcon.text = "";
+                                }
+                            }
+
                             RowLayout {
                                 width: parent.width
                                 spacing: Theme.spacingS
-                                DankTextField { id: newName; Layout.fillWidth: true; placeholderText: "Preset Name (e.g. AdGuard Home)" }
-                                DankTextField { id: newIcon; width: 110; placeholderText: "Icon (dns)" }
+                                DankTextField {
+                                    id: newName
+                                    Layout.fillWidth: true
+                                    placeholderText: "Preset Name (e.g. AdGuard Home)"
+                                    onAccepted: formCol.handleAddPreset()
+                                }
+                                DankTextField {
+                                    id: newIcon
+                                    width: 110
+                                    placeholderText: "Icon (dns)"
+                                    onAccepted: formCol.handleAddPreset()
+                                }
                             }
                             
                             RowLayout {
@@ -442,24 +545,7 @@ PluginSettings {
                                     id: newIp
                                     Layout.fillWidth: true
                                     placeholderText: "IP Addresses (e.g. 1.1.1.1, 1.0.0.1)"
-                                    onAccepted: addPreset()
-                                }
-
-                                function addPreset() {
-                                    let nameTrimmed = newName.text.trim();
-                                    let ipTrimmed = newIp.text.trim();
-                                    if (!nameTrimmed || !ipTrimmed) return;
-                                    let list = Array.from(root.customProviders);
-                                    list.push({
-                                        name: nameTrimmed,
-                                        ip: ipTrimmed,
-                                        icon: newIcon.text.trim() || "dns"
-                                    });
-                                    root.customProviders = list;
-                                    root.saveCustom();
-                                    newName.text = "";
-                                    newIp.text = "";
-                                    newIcon.text = "";
+                                    onAccepted: formCol.handleAddPreset()
                                 }
 
                                 Rectangle {
@@ -467,7 +553,7 @@ PluginSettings {
                                     width: 38
                                     height: 38
                                     radius: 8
-                                    readonly property bool canAdd: newName.text.trim().length > 0 && newIp.text.trim().length > 0
+                                    readonly property bool canAdd: (newName.text || "").trim().length > 0 && (newIp.text || "").trim().length > 0
                                     color: canAdd ? Theme.primary : Qt.rgba(Theme.surfaceContainerHighest.r, Theme.surfaceContainerHighest.g, Theme.surfaceContainerHighest.b, 0.6)
                                     scale: addBtnArea.pressed ? 0.92 : (addBtnArea.containsMouse && canAdd ? 1.06 : 1.0)
                                     Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
@@ -486,7 +572,7 @@ PluginSettings {
                                         enabled: addBtn.canAdd
                                         hoverEnabled: addBtn.canAdd
                                         cursorShape: addBtn.canAdd ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                        onClicked: addPreset()
+                                        onClicked: formCol.handleAddPreset()
                                         onPressed: (m) => addRip.trigger(m.x, m.y)
                                     }
                                     DankRipple { id: addRip; anchors.fill: parent; cornerRadius: 8; rippleColor: Theme.surface }
@@ -502,7 +588,7 @@ PluginSettings {
                         visible: root.customProviders && root.customProviders.length > 0
 
                         Repeater {
-                            model: root.customProviders
+                            model: root.customProvidersModel
                             delegate: Rectangle {
                                 width: parent.width
                                 height: 48
@@ -512,10 +598,12 @@ PluginSettings {
 
                                 property bool isFirst: index === 0
                                 property bool isLast: index === (root.customProviders.length - 1)
-                                topLeftRadius: isFirst ? root.outerR : root.innerR
-                                topRightRadius: isFirst ? root.outerR : root.innerR
-                                bottomLeftRadius: isLast ? root.outerR : root.innerR
-                                bottomRightRadius: isLast ? root.outerR : root.innerR
+                                property bool isSingle: (root.customProviders.length === 1)
+
+                                topLeftRadius: (isFirst || isSingle) ? root.outerR : root.innerR
+                                topRightRadius: (isFirst || isSingle) ? root.outerR : root.innerR
+                                bottomLeftRadius: (isLast || isSingle) ? root.outerR : root.innerR
+                                bottomRightRadius: (isLast || isSingle) ? root.outerR : root.innerR
                                 
                                 RowLayout {
                                     anchors.fill: parent
@@ -531,7 +619,7 @@ PluginSettings {
                                         Layout.alignment: Qt.AlignVCenter
 
                                         DankIcon {
-                                            name: modelData.icon || "dns"
+                                            name: (modelData && modelData.icon) ? modelData.icon : "dns"
                                             size: 18
                                             color: Theme.primary
                                             anchors.centerIn: parent
@@ -542,8 +630,8 @@ PluginSettings {
                                         Layout.fillWidth: true
                                         Layout.alignment: Qt.AlignVCenter
                                         spacing: 1
-                                        StyledText { text: modelData.name; font.weight: Font.Medium; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceText }
-                                        StyledText { text: modelData.ip; font.pixelSize: Theme.fontSizeSmall - 2; font.family: "Monospace"; color: Theme.primary; opacity: 0.7 }
+                                        StyledText { text: (modelData && modelData.name) ? modelData.name : ""; font.weight: Font.Medium; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceText }
+                                        StyledText { text: (modelData && modelData.ip) ? modelData.ip : ""; font.pixelSize: Theme.fontSizeSmall - 2; font.family: "Monospace"; color: Theme.primary; opacity: 0.7 }
                                     }
 
                                     Item {
@@ -572,12 +660,7 @@ PluginSettings {
                                                 anchors.fill: parent
                                                 hoverEnabled: true
                                                 cursorShape: Qt.PointingHandCursor
-                                                onClicked: {
-                                                    let list = Array.from(root.customProviders);
-                                                    list.splice(index, 1);
-                                                    root.customProviders = list;
-                                                    root.saveCustom();
-                                                }
+                                                onClicked: root.deleteCustomProvider(index)
                                                 onPressed: (m) => ripDelete.trigger(m.x, m.y)
                                             }
                                             DankRipple { id: ripDelete; anchors.fill: parent; cornerRadius: 15; rippleColor: Theme.error }

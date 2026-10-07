@@ -115,6 +115,29 @@ PluginComponent {
 
     property bool loading: (_scanning && (isManualRefresh || _showCheckAnim || _setting)) || _setting
 
+    Connections {
+        target: PluginService
+        ignoreUnknownSignals: true
+        function onPluginDataChanged(changedPluginId) {
+            if (changedPluginId === "dnsSwitcher") {
+                root._hiddenProviders = PluginService.loadPluginData("dnsSwitcher", "hiddenProviders", "[]");
+                root._customProviders = PluginService.loadPluginData("dnsSwitcher", "customProviders", "[]");
+                root._showIpAddressData = PluginService.loadPluginData("dnsSwitcher", "showIpAddress", "false");
+                root._showCheckAnimData = PluginService.loadPluginData("dnsSwitcher", "showCheckAnim", "false");
+                root.updateProviders();
+            }
+        }
+        function onGlobalVarChanged(changedPluginId, varName) {
+            if (changedPluginId === "dnsSwitcher") {
+                root._hiddenProviders = PluginService.loadPluginData("dnsSwitcher", "hiddenProviders", "[]");
+                root._customProviders = PluginService.loadPluginData("dnsSwitcher", "customProviders", "[]");
+                root._showIpAddressData = PluginService.loadPluginData("dnsSwitcher", "showIpAddress", "false");
+                root._showCheckAnimData = PluginService.loadPluginData("dnsSwitcher", "showCheckAnim", "false");
+                root.updateProviders();
+            }
+        }
+    }
+
     PluginGlobalVar { varName: "hiddenProviders"; onValueChanged: { root._hiddenProviders = value; root.updateProviders() } }
     PluginGlobalVar { varName: "customProviders"; onValueChanged: { root._customProviders = value; root.updateProviders() } }
     PluginGlobalVar {
@@ -138,10 +161,16 @@ PluginComponent {
 
     function updateProviders() {
         let hidden = [];
-        try { hidden = JSON.parse(root._hiddenProviders); } catch(e) { hidden = []; }
+        try { 
+            let parsed = typeof root._hiddenProviders === "string" ? JSON.parse(root._hiddenProviders) : root._hiddenProviders;
+            hidden = Array.isArray(parsed) ? parsed : [];
+        } catch(e) { hidden = []; }
         
         let custom = [];
-        try { custom = JSON.parse(root._customProviders); } catch(e) { custom = []; }
+        try { 
+            let parsed = typeof root._customProviders === "string" ? JSON.parse(root._customProviders) : root._customProviders;
+            custom = Array.isArray(parsed) ? parsed : [];
+        } catch(e) { custom = []; }
 
         let defaults = [
             { name: "System Default", ip: "", icon: "cloud_off" },
