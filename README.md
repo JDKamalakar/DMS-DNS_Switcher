@@ -33,7 +33,7 @@ Monitor and switch your system DNS providers – easier than ever on the Dank Ma
 
 </div>
 
-## Dependencies
+##  Dependencies
 
 * `NetworkManager` (`nmcli`) - Required for DNS and connection control.
 * `curl` - Required when the optional public IP display feature is enabled.
