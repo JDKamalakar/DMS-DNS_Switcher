@@ -1,9 +1,11 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import qs.Common
 import qs.Widgets
 import qs.Modules.Plugins
+import qs.Modules.Settings.Widgets
 import qs.Services
 
 PluginSettings {
@@ -667,6 +669,181 @@ PluginSettings {
                                         }
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Required Packages Section ---
+        Item {
+            id: depsWrapper
+            width: parent.width
+            implicitHeight: depsCol.implicitHeight
+
+            property bool expanded: false
+            property var depStatus: ({
+                "NetworkManager": true,
+                "curl": true,
+                "systemd-resolved": true
+            })
+            property bool isChecking: true
+
+            Process {
+                id: depChecker
+                command: [
+                    "bash", "-c",
+                    "python3 -c \"import json, shutil, sys\n" +
+                    "cmds = [\n" +
+                    "  ('NetworkManager', 'nmcli'),\n" +
+                    "  ('curl', 'curl'),\n" +
+                    "  ('systemd-resolved', 'resolvectl')\n" +
+                    "]\n" +
+                    "results = {k: bool(shutil.which(cmd)) for k, cmd in cmds}\n" +
+                    "sys.stdout.write(json.dumps(results))\n\""
+                ]
+                stdout: StdioCollector {
+                    onStreamFinished: {
+                        depsWrapper.isChecking = false;
+                        try {
+                            if (text && text.trim() !== "") {
+                                depsWrapper.depStatus = JSON.parse(text.trim());
+                            }
+                        } catch (e) {
+                            console.warn("Failed to parse dependency status:", e);
+                        }
+                    }
+                }
+            }
+
+            Component.onCompleted: {
+                depChecker.running = true;
+            }
+
+            Column {
+                id: depsCol
+                width: parent.width
+                spacing: 0
+
+                Item {
+                    id: depsHeaderRow
+                    width: parent.width
+                    height: 40
+
+                    Row {
+                        anchors.left: parent.left
+                        anchors.leftMargin: Theme.spacingM
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: Theme.spacingXS
+
+                        DankIcon {
+                            name: "extension"
+                            size: 16
+                            color: Theme.primary
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        StyledText {
+                            text: I18n.tr("Required packages")
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.weight: Font.DemiBold
+                            color: Theme.primary
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    DankIcon {
+                        anchors.right: parent.right
+                        anchors.rightMargin: Theme.spacingM
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "expand_more"
+                        size: Theme.iconSize || 20
+                        color: Theme.surfaceVariantText
+                        rotation: depsWrapper.expanded ? 180 : 0
+
+                        Behavior on rotation {
+                            NumberAnimation {
+                                duration: 200
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            depsWrapper.expanded = !depsWrapper.expanded;
+                            if (depsWrapper.expanded) {
+                                depsWrapper.isChecking = true;
+                                depChecker.running = true;
+                            }
+                        }
+                    }
+                }
+
+                Item {
+                    id: animHost
+                    width: parent.width
+                    clip: true
+                    height: depsWrapper.expanded ? groupContent.implicitHeight : 0
+                    opacity: depsWrapper.expanded ? 1.0 : 0.0
+                    visible: height > 0 || depsWrapper.expanded
+
+                    Behavior on height {
+                        NumberAnimation {
+                            duration: 250
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: 200
+                            easing.type: Easing.OutQuad
+                        }
+                    }
+
+                    SettingsGroup {
+                        id: groupContent
+                        width: parent.width
+
+                        SettingsRow {
+                            visible: depsWrapper.isChecking
+                            iconName: "hourglass_top"
+                            title: I18n.tr("Checking packages...")
+                        }
+
+                        Repeater {
+                            model: [
+                                {
+                                    id: "NetworkManager",
+                                    pkg: "NetworkManager (nmcli)",
+                                    features: "Managing system network connections and configuring DNS settings",
+                                    present: Boolean(depsWrapper.depStatus["NetworkManager"])
+                                },
+                                {
+                                    id: "curl",
+                                    pkg: "curl",
+                                    features: "Fetching public IP address and geolocation info on demand",
+                                    present: Boolean(depsWrapper.depStatus["curl"])
+                                },
+                                {
+                                    id: "systemd-resolved",
+                                    pkg: "systemd-resolved (resolvectl)",
+                                    features: "Resolving and querying runtime system DNS status",
+                                    present: Boolean(depsWrapper.depStatus["systemd-resolved"])
+                                }
+                            ]
+
+                            delegate: SettingsRow {
+                                iconName: modelData.present ? "check_circle" : "error"
+                                iconColor: modelData.present ? Theme.success : Theme.error
+                                title: modelData.pkg
+                                subtitle: I18n.tr("Used for: %1").arg(modelData.features)
+                                trailingBadge: modelData.present ? I18n.tr("Installed") : I18n.tr("Missing")
+                                trailingBadgeColor: modelData.present ? Theme.surfaceVariantText : Theme.error
                             }
                         }
                     }

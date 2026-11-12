@@ -43,6 +43,7 @@ PluginComponent {
 
     Component.onCompleted: {
         root.updateProviders();
+        root.refresh(false);
         console.log("DNS Switcher Plugin Loaded: " + root.providerName);
         if (root._showIpAddress) {
             ipScanner.running = true;
@@ -64,9 +65,21 @@ PluginComponent {
 
     Connections {
         target: NetworkService
-        function onPrimaryDeviceChanged() { root.refresh(false); }
+        function onConnectionChanged() { root.refresh(false); }
+        function onPrimaryConnectionChanged() { root.refresh(false); }
+        function onNetworkStatusChanged() { root.refresh(false); }
         function onWifiConnectedChanged() { root.refresh(false); }
         function onEthernetConnectedChanged() { root.refresh(false); }
+    }
+
+    Timer {
+        id: periodicDnsCheckTimer
+        interval: 30000
+        repeat: true
+        running: true
+        onTriggered: {
+            root.refresh(false);
+        }
     }
 
     onPopoutOpenChanged: {
@@ -242,8 +255,7 @@ PluginComponent {
         command: ["nmcli", "-t", "-f", "UUID,NAME", "connection", "show", "--active"]
         stdout: StdioCollector {
             onStreamFinished: {
-                let lines = text.trim().split("
-");
+                let lines = text.trim().split("\n");
                 let selectedUuid = "";
                 let selectedName = "";
 
